@@ -1,6 +1,7 @@
 <?php
 require_once '../config.php';
 require_once '../CRUD.php';
+require_once '../Mailer.php';
 
 header('Content-Type: application/json');
 
@@ -59,7 +60,10 @@ try {
     // Get user data without password
     $user = $userCrud->read($userId);
     unset($user['password']);
-    
+
+    // Send welcome email (best-effort - don't fail registration if it doesn't go through)
+    Mailer::sendWelcomeEmail($input['email'], $input['name']);
+
     echo json_encode([
         'success' => true,
         'message' => 'Registration successful',

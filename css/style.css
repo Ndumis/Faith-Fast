@@ -4,6 +4,7 @@
   --secondary: #ffffff;
   --accent: #333333;
   --accent-light: #f5f5f5;
+  --brand-gradient: linear-gradient(135deg, #4a6fa5 0%, #283655 55%, #0b0c10 100%);
   --light-gray: #f8f9fa;
   --medium-gray: #e9ecef;
   --dark-gray: #6c757d;
@@ -71,7 +72,7 @@ body {
 .logo-icon {
   width: 40px;
   height: 40px;
-  background: var(--primary);
+  background: var(--brand-gradient);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -79,6 +80,7 @@ body {
   color: var(--secondary);
   font-weight: 700;
   font-size: 18px;
+  box-shadow: 0 2px 8px rgba(40, 54, 85, 0.35);
 }
 
 .logo h1 {

@@ -56,7 +56,7 @@ class Auth {
         showForgotLinks.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.showForm('forgot');
+                this.showForm('forgotPassword');
             });
         });
     }
@@ -170,7 +170,9 @@ class Auth {
 
     async handleRegister(e) {
         e.preventDefault();
-        
+
+        const confirmPassword = document.getElementById('regConfirmPassword').value;
+
         const formData = {
             name: document.getElementById('regName').value,
             email: document.getElementById('regEmail').value,
@@ -186,6 +188,21 @@ class Auth {
                 this.showError(`Please fill in the ${key.replace('_', ' ')} field`);
                 return;
             }
+        }
+
+        if (formData.password.length < 8) {
+            this.showError('Password must be at least 8 characters long');
+            return;
+        }
+
+        if (!/[A-Za-z]/.test(formData.password) || !/[0-9]/.test(formData.password)) {
+            this.showError('Password must contain at least one letter and one number');
+            return;
+        }
+
+        if (formData.password !== confirmPassword) {
+            this.showError('Passwords do not match');
+            return;
         }
 
         this.showLoading(true);
@@ -233,7 +250,7 @@ class Auth {
             });
 
             if (response.success) {
-                this.showSuccess('Password reset instructions sent to your email');
+                this.showSuccess('If an account exists for that email, a password reset link has been sent.');
                 this.showForm('login');
             } else {
                 this.showError(response.message || 'Password reset failed');
@@ -349,83 +366,11 @@ class Auth {
     }
 
     showError(message) {
-        this.showNotification(message, 'error');
+        showNotification(message, 'error');
     }
 
     showSuccess(message) {
-        this.showNotification(message, 'success');
-    }
-
-    showNotification(message, type) {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.auth-notification');
-        existingNotifications.forEach(notification => notification.remove());
-
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `auth-notification ${type}`;
-        notification.innerHTML = `
-            <div class="notification-content">
-                <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
-                <span>${message}</span>
-                <button class="close-notification">&times;</button>
-            </div>
-        `;
-
-        // Add styles if not already added
-        if (!document.querySelector('#auth-notification-styles')) {
-            const styles = document.createElement('style');
-            styles.id = 'auth-notification-styles';
-            styles.textContent = `
-                .auth-notification {
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: white;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                    z-index: 10000;
-                    border-left: 4px solid;
-                    max-width: 300px;
-                }
-                .auth-notification.error {
-                    border-left-color: var(--error);
-                }
-                .auth-notification.success {
-                    border-left-color: var(--success);
-                }
-                .notification-content {
-                    padding: 1rem;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-                .close-notification {
-                    background: none;
-                    border: none;
-                    font-size: 1.2rem;
-                    cursor: pointer;
-                    margin-left: auto;
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-
-        document.body.appendChild(notification);
-
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 5000);
-
-        // Close button
-        notification.querySelector('.close-notification').addEventListener('click', () => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        });
+        showNotification(message, 'success');
     }
 }
 
