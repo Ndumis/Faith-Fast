@@ -1,3 +1,14 @@
+// Shared helpers (also used by app.js on the dashboard) — the PWA install
+// prompt should only ever be offered on mobile devices, and only if the
+// app hasn't already been installed on this device.
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function isPwaInstalled() {
+    return localStorage.getItem('pwaInstalled') !== null;
+}
+
 // Enhanced install button management
 class PWAInstallUI {
     constructor() {
@@ -6,8 +17,13 @@ class PWAInstallUI {
     }
 
     init() {
-        this.createInstallButton();
         this.setupEventListeners();
+
+        // Only offer the install button on mobile devices, and only if the
+        // app isn't already installed / running standalone.
+        if (isMobileDevice() && !isPwaInstalled() && !this.isRunningStandalone()) {
+            this.createInstallButton();
+        }
     }
 
     createInstallButton() {
@@ -66,7 +82,7 @@ class PWAInstallUI {
     }
 
     showInstallButton() {
-        if (this.installButton && window.deferredPrompt && !this.isRunningStandalone()) {
+        if (this.installButton && window.deferredPrompt && isMobileDevice() && !isPwaInstalled() && !this.isRunningStandalone()) {
             this.installButton.style.display = 'block';
             console.log('Install button shown');
         }
@@ -126,6 +142,12 @@ class PWAInstallUI {
             e.preventDefault();
             window.deferredPrompt = e;
 
+            // Only show the install UI on mobile devices that haven't
+            // already installed the app.
+            if (!isMobileDevice() || isPwaInstalled() || this.isRunningStandalone()) {
+                return;
+            }
+
             // ✅ Delegate to app.js modal if available
             if (window.app && typeof window.app.showInstallModal === 'function') {
                 window.app.showInstallModal();
@@ -138,6 +160,7 @@ class PWAInstallUI {
         window.addEventListener('appinstalled', () => {
             console.log('🎉 App installed successfully');
             window.deferredPrompt = null;
+            localStorage.setItem('pwaInstalled', new Date().getTime().toString());
 
             // ✅ Close modal if app.js is handling it
             if (window.app && typeof window.app.hideInstallModal === 'function') {

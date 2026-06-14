@@ -4,6 +4,14 @@ require_once '../CRUD.php';
 
 header('Content-Type: application/json');
 
+// Percentage change between two counts, handling the zero-baseline case.
+function calcPercentChange($current, $previous) {
+    if ($previous == 0) {
+        return $current > 0 ? 100 : 0;
+    }
+    return (int) round((($current - $previous) / $previous) * 100);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
@@ -26,7 +34,32 @@ try {
     $fastType = $input['fastType'] ?? 'all';
     
     $db = Database::getInstance()->getConnection();
-    
+
+    // Auto-complete fasts whose end date has already passed but are still
+    // marked active, so stats below reflect reality. Compared using PHP's
+    // clock (consistent with the rest of the app's date checks).
+    $sql = "SELECT id, end_date FROM user_fasts WHERE user_id = ? AND status = 'active'";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $expiredFastIds = [];
+    while ($row = $result->fetch_assoc()) {
+        if (strtotime($row['end_date']) < time()) {
+            $expiredFastIds[] = (int)$row['id'];
+        }
+    }
+    $stmt->close();
+
+    if (!empty($expiredFastIds)) {
+        $placeholders = implode(',', array_fill(0, count($expiredFastIds), '?'));
+        $types = str_repeat('i', count($expiredFastIds));
+        $stmt = $db->prepare("UPDATE user_fasts SET status = 'completed', progress_percent = 100 WHERE id IN ($placeholders)");
+        $stmt->bind_param($types, ...$expiredFastIds);
+        $stmt->execute();
+        $stmt->close();
+    }
+
     // Build WHERE conditions for filters
     $whereConditions = ["uf.user_id = ?"];
     $params = [$user_id];
@@ -150,23 +183,40 @@ try {
         }
     }
     
-    // Get current streak (consecutive days with fasting)
-    $sql = "SELECT DATEDIFF(CURDATE(), MAX(start_date)) as streak 
-            FROM user_fasts 
-            WHERE user_id = ? AND status = 'completed' 
-            AND start_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
-    
+    // Current streak: consecutive days, ending today, covered by an active
+    // or completed fast's date range.
+    $sql = "SELECT start_date, end_date FROM user_fasts WHERE user_id = ? AND status IN ('active', 'completed')";
     $stmt = $db->prepare($sql);
     if (!$stmt) {
         throw new Exception("SQL prepare failed: " . $db->error);
     }
-    
+
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $streakData = $result->fetch_assoc();
-    $currentStreak = $streakData['streak'] ?? 0;
+    $fastRanges = [];
+    while ($row = $result->fetch_assoc()) {
+        $fastRanges[] = [strtotime($row['start_date']), strtotime($row['end_date'])];
+    }
     $stmt->close();
+
+    $currentStreak = 0;
+    $dayStart = strtotime('today');
+    while ($currentStreak < 3650) {
+        $dayEnd = $dayStart + 86400;
+        $covered = false;
+        foreach ($fastRanges as $range) {
+            if ($range[0] < $dayEnd && $range[1] > $dayStart) {
+                $covered = true;
+                break;
+            }
+        }
+        if (!$covered) {
+            break;
+        }
+        $currentStreak++;
+        $dayStart -= 86400;
+    }
     
     // Fasts this month (current month/year, ignoring filters)
     $currentYear = date('Y');
@@ -184,6 +234,62 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $fastsThisMonth = $result->fetch_assoc()['fasts_this_month'] ?? 0;
+    $stmt->close();
+
+    // Previous month/year, for month-over-month comparisons below
+    $prevMonth = (int)$currentMonth - 1;
+    $prevYear = (int)$currentYear;
+    if ($prevMonth < 1) {
+        $prevMonth = 12;
+        $prevYear--;
+    }
+
+    // Fasts started this month vs last month
+    $sql = "SELECT
+                SUM(CASE WHEN YEAR(start_date) = ? AND MONTH(start_date) = ? THEN 1 ELSE 0 END) as current_count,
+                SUM(CASE WHEN YEAR(start_date) = ? AND MONTH(start_date) = ? THEN 1 ELSE 0 END) as prev_count
+            FROM user_fasts WHERE user_id = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('iiiii', $currentYear, $currentMonth, $prevYear, $prevMonth, $user_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $fastsChange = calcPercentChange((int)$row['current_count'], (int)$row['prev_count']);
+    $stmt->close();
+
+    // Hours fasted (completed fasts) ending this month vs last month
+    $sql = "SELECT
+                SUM(CASE WHEN status = 'completed' AND YEAR(end_date) = ? AND MONTH(end_date) = ? THEN TIMESTAMPDIFF(HOUR, start_date, end_date) ELSE 0 END) as current_hours,
+                SUM(CASE WHEN status = 'completed' AND YEAR(end_date) = ? AND MONTH(end_date) = ? THEN TIMESTAMPDIFF(HOUR, start_date, end_date) ELSE 0 END) as prev_hours
+            FROM user_fasts WHERE user_id = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('iiiii', $currentYear, $currentMonth, $prevYear, $prevMonth, $user_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $hoursChange = calcPercentChange((int)($row['current_hours'] ?? 0), (int)($row['prev_hours'] ?? 0));
+    $stmt->close();
+
+    // Prayers added this month vs last month
+    $sql = "SELECT
+                SUM(CASE WHEN YEAR(created_at) = ? AND MONTH(created_at) = ? THEN 1 ELSE 0 END) as current_count,
+                SUM(CASE WHEN YEAR(created_at) = ? AND MONTH(created_at) = ? THEN 1 ELSE 0 END) as prev_count
+            FROM prayer_requests WHERE user_id = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('iiiii', $currentYear, $currentMonth, $prevYear, $prevMonth, $user_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $prayersChange = calcPercentChange((int)$row['current_count'], (int)$row['prev_count']);
+    $stmt->close();
+
+    // Journal entries added this month vs last month
+    $sql = "SELECT
+                SUM(CASE WHEN YEAR(created_at) = ? AND MONTH(created_at) = ? THEN 1 ELSE 0 END) as current_count,
+                SUM(CASE WHEN YEAR(created_at) = ? AND MONTH(created_at) = ? THEN 1 ELSE 0 END) as prev_count
+            FROM journal_entries WHERE user_id = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('iiiii', $currentYear, $currentMonth, $prevYear, $prevMonth, $user_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $journalChange = calcPercentChange((int)$row['current_count'], (int)$row['prev_count']);
     $stmt->close();
 
     // Get active fasts count WITH FILTERS
@@ -400,10 +506,10 @@ try {
             'totalHours' => $totalHours,
             'prayersCount' => $prayersCount,
             'journalEntries' => $journalEntries,
-            'fastsChange' => 0,
-            'hoursChange' => 0,
-            'prayersChange' => 0,
-            'journalChange' => 0,
+            'fastsChange' => $fastsChange,
+            'hoursChange' => $hoursChange,
+            'prayersChange' => $prayersChange,
+            'journalChange' => $journalChange,
             'currentStreak' => $currentStreak,
             'fastsThisMonth' => $fastsThisMonth,
             'activeFasts' => $activeFasts,
