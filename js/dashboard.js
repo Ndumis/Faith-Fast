@@ -651,55 +651,6 @@ class Dashboard {
     }
 	
 
-    loadDemoData() {
-        console.log('Loading demo data...');
-        const demoData = {
-            totalFasts: 5,
-            totalHours: 120,
-            prayersCount: 15,
-            journalEntries: 8,
-            fastsChange: 25,
-            hoursChange: 15,
-            prayersChange: 40,
-            journalChange: 20,
-            currentStreak: 7,
-            fastsThisMonth: 2,
-            activeFasts: [
-                {
-                    id: 1,
-                    plan_name: 'Daniel Fast',
-                    start_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                    end_date: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString(),
-                    progress_percent: 25
-                }
-            ],
-            calendarData: this.generateDemoCalendarData()
-        };
-        
-        this.updateDashboardWithData(demoData);
-    }
-
-    generateDemoCalendarData() {
-        const data = [];
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        
-        // Add some demo fasting and prayer days
-        for (let i = 1; i <= 7; i++) {
-            const date = new Date(currentYear, currentMonth, i * 4);
-            if (date.getMonth() === currentMonth) {
-                data.push({
-                    date: date.toISOString().split('T')[0],
-                    fasting: Math.random() > 0.5,
-                    prayer: Math.random() > 0.3
-                });
-            }
-        }
-        
-        return data;
-    }
-
     async apiCall(endpoint, method = 'GET', data = null) {
         return await AuthHelper.apiCall(endpoint, method, data);
     }

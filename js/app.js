@@ -574,8 +574,9 @@ class FaithFastApp {
     }
 
     showInstallModal() {
-        // Don't show if already installed or running as PWA
-        if (this.isRunningStandalone() || this.isAppInstalled()) {
+        // Install prompt is mobile-only, and shouldn't show if already
+        // installed or running as PWA
+        if (!isMobileDevice() || this.isRunningStandalone() || this.isAppInstalled()) {
             return;
         }
 
@@ -662,6 +663,11 @@ class FaithFastApp {
     }
 
     shouldShowInstallModal() {
+        // Install prompt is mobile-only
+        if (!isMobileDevice()) {
+            return false;
+        }
+
         // Don't show if already installed
         if (this.isAppInstalled() || this.isRunningStandalone()) {
             return false;
