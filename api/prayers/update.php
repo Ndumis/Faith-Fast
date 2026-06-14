@@ -44,6 +44,9 @@ try {
     if (isset($input['title'])) $updateData['title'] = $input['title'];
     if (isset($input['description'])) $updateData['description'] = $input['description'];
     if (isset($input['category'])) $updateData['category'] = $input['category'];
+    if (array_key_exists('user_fast_id', $input)) {
+        $updateData['user_fast_id'] = !empty($input['user_fast_id']) ? (int)$input['user_fast_id'] : null;
+    }
     
     if (!empty($updateData)) {
         $updateData['updated_at'] = date('Y-m-d H:i:s');

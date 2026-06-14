@@ -363,7 +363,7 @@ class Fasting {
                             <div class="fast-details small">
                                 <p><strong>Started:</strong> ${new Date(fast.start_date).toLocaleDateString()}</p>
                                 <p><strong>Ends:</strong> ${endDate.toLocaleDateString()}</p>
-                                ${fast.intention ? `<p><strong>Intention:</strong> ${fast.intention}</p>` : ''}
+                                ${fast.intention ? `<p><strong>Intention:</strong> ${RichTextEditor.contentToHtml(fast.intention)}</p>` : ''}
                                 <p><strong>Status:</strong> <span class="badge bg-success">Active</span></p>
                             </div>
                         </div>
@@ -428,7 +428,7 @@ class Fasting {
                             </div>
                             <p class="mb-1"><strong>Starts:</strong> ${startDate.toLocaleString()}</p>
                             <p class="mb-1"><strong>Duration:</strong> ${plan.duration_days} days</p>
-                            ${fast.intention ? `<p class="mb-2"><strong>Intention:</strong> ${fast.intention}</p>` : ''}
+                            ${fast.intention ? `<p class="mb-2"><strong>Intention:</strong> ${RichTextEditor.contentToHtml(fast.intention)}</p>` : ''}
                         </div>
                         <div class="card-footer">
                             <button class="btn btn-outline-danger btn-sm w-100" 
@@ -618,14 +618,34 @@ class Fasting {
 
 								<div class="mb-3">
 									<label for="intention" class="form-label">Intention/Purpose</label>
-									<textarea class="form-control" id="intention" name="intention" rows="3" 
-											  placeholder="Why are you starting this fast? What are you seeking God for?"></textarea>
+									<div class="richtext-toolbar" role="toolbar" aria-label="Text formatting">
+										<button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+										<button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+										<button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+										<span class="toolbar-divider"></span>
+										<button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+										<button type="button" class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+										<span class="toolbar-divider"></span>
+										<button type="button" class="toolbar-btn" data-command="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+									</div>
+									<div id="intention" class="form-control richtext-content" contenteditable="true"
+										 data-placeholder="Why are you starting this fast? What are you seeking God for?"></div>
 								</div>
 
 								<div class="mb-3">
 									<label for="notes" class="form-label">Additional Notes</label>
-									<textarea class="form-control" id="notes" name="notes" rows="2" 
-											  placeholder="Any specific guidelines or personal rules for this fast?"></textarea>
+									<div class="richtext-toolbar" role="toolbar" aria-label="Text formatting">
+										<button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+										<button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+										<button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+										<span class="toolbar-divider"></span>
+										<button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+										<button type="button" class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+										<span class="toolbar-divider"></span>
+										<button type="button" class="toolbar-btn" data-command="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+									</div>
+									<div id="notes" class="form-control richtext-content" contenteditable="true"
+										 data-placeholder="Any specific guidelines or personal rules for this fast?"></div>
 								</div>
 							</form>
 						</div>
@@ -644,6 +664,9 @@ class Fasting {
 		// Initialize Bootstrap modal
 		const modalElement = document.getElementById('startFastModal');
 		const modal = new bootstrap.Modal(modalElement);
+
+		// Wire up the rich-text formatting toolbars for intention/notes
+		RichTextEditor.bindAll(modalElement);
 		
 		// Add event listener to the submit button
 		const submitBtn = document.getElementById('startFastSubmitBtn');
@@ -711,11 +734,14 @@ class Fasting {
 			return;
 		}
 
+		const intentionInput = document.getElementById('intention');
+		const notesInput = document.getElementById('notes');
+
 		const fastData = {
 			plan_id: formData.get('plan_id'),
 			start_date: startDate,
-			intention: formData.get('intention'),
-			notes: formData.get('notes')
+			intention: intentionInput ? RichTextEditor.sanitizeHtml(intentionInput.innerHTML) : '',
+			notes: notesInput ? RichTextEditor.sanitizeHtml(notesInput.innerHTML) : ''
 		};
 
 		// Show loading state
@@ -812,102 +838,122 @@ class Fasting {
     }
 
     showFastDetailsModal(fast) {
+        const progress = fast.progress_percent || 0;
+
         const modalHtml = `
             <div class="modal fade" id="fastDetailsModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
+                    <div class="modal-content fast-details-modal">
                         <div class="modal-header">
-                            <h5 class="modal-title">Fast Details - ${fast.plan_name || 'Custom Fast'}</h5>
+                            <h5 class="modal-title">
+                                <i class="fas fa-fire"></i> ${this.escapeHtml(fast.plan_name || 'Custom Fast')}
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6>Fast Information</h6>
-                                    <table class="table table-sm">
-                                        <tr>
-                                            <td><strong>Plan:</strong></td>
-                                            <td>${fast.plan_name || 'Custom'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Duration:</strong></td>
-                                            <td>${fast.duration_days} days</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Difficulty:</strong></td>
-                                            <td>
-                                                <span class="badge bg-${this.getDifficultyColor(fast.difficulty)}">
-                                                    ${fast.difficulty}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Status:</strong></td>
-                                            <td>
-                                                <span class="badge bg-${this.getStatusColor(fast.status)}">
-                                                    ${fast.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    </table>
+                            <div class="fast-detail-badges">
+                                <span class="fast-detail-badge difficulty-${fast.difficulty}">
+                                    <i class="fas fa-${this.getDifficultyIcon(fast.difficulty)}"></i> ${fast.difficulty}
+                                </span>
+                                <span class="fast-detail-badge status-${fast.status}">
+                                    <i class="fas fa-circle"></i> ${fast.status}
+                                </span>
+                            </div>
+
+                            <div class="fast-progress-wrap">
+                                <div class="fast-progress-label">
+                                    <span>Progress</span>
+                                    <span>${progress}%</span>
                                 </div>
-                                <div class="col-md-6">
-                                    <h6>Timeline</h6>
-                                    <table class="table table-sm">
-                                        <tr>
-                                            <td><strong>Start:</strong></td>
-                                            <td>${new Date(fast.start_date).toLocaleString()}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>End:</strong></td>
-                                            <td>${new Date(fast.end_date).toLocaleString()}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Progress:</strong></td>
-                                            <td>${fast.progress_percent || 0}% complete</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Elapsed:</strong></td>
-                                            <td>${fast.elapsed_days} days</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Remaining:</strong></td>
-                                            <td>${fast.remaining_days} days</td>
-                                        </tr>
-                                    </table>
+                                <div class="fast-progress-bar">
+                                    <div class="fast-progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="fast-detail-stats">
+                                <div class="fast-detail-stat">
+                                    <i class="fas fa-calendar-day"></i>
+                                    <div>
+                                        <span class="stat-label">Duration</span>
+                                        <span class="stat-value">${fast.duration_days} days</span>
+                                    </div>
+                                </div>
+                                <div class="fast-detail-stat">
+                                    <i class="fas fa-play"></i>
+                                    <div>
+                                        <span class="stat-label">Started</span>
+                                        <span class="stat-value">${new Date(fast.start_date).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                                <div class="fast-detail-stat">
+                                    <i class="fas fa-flag-checkered"></i>
+                                    <div>
+                                        <span class="stat-label">Ends</span>
+                                        <span class="stat-value">${new Date(fast.end_date).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                                <div class="fast-detail-stat">
+                                    <i class="fas fa-hourglass-half"></i>
+                                    <div>
+                                        <span class="stat-label">Elapsed</span>
+                                        <span class="stat-value">${fast.elapsed_days} days</span>
+                                    </div>
+                                </div>
+                                <div class="fast-detail-stat">
+                                    <i class="fas fa-hourglass-end"></i>
+                                    <div>
+                                        <span class="stat-label">Remaining</span>
+                                        <span class="stat-value">${fast.remaining_days} days</span>
+                                    </div>
                                 </div>
                             </div>
 
                             ${fast.intention ? `
-                                <div class="mt-3">
-                                    <h6>Fast Intention</h6>
-                                    <p class="p-3 bg-light rounded">${fast.intention}</p>
+                                <div class="fast-detail-section">
+                                    <h6 class="fast-detail-section-title"><i class="fas fa-heart"></i> Fast Intention</h6>
+                                    <div class="fast-detail-content">${RichTextEditor.contentToHtml(fast.intention)}</div>
                                 </div>
                             ` : ''}
 
-                            ${fast.journal_entries && fast.journal_entries.length > 0 ? `
-                                <div class="mt-3">
-                                    <h6>Journal Entries</h6>
-                                    <div class="journal-entries">
+                            <div class="fast-detail-section">
+                                <h6 class="fast-detail-section-title"><i class="fas fa-book"></i> Journal Entries</h6>
+                                ${fast.journal_entries && fast.journal_entries.length > 0 ? `
+                                    <div class="linked-entries-list">
                                         ${fast.journal_entries.map(entry => `
-                                            <div class="card mb-2">
-                                                <div class="card-body py-2">
-                                                    <h6 class="card-title mb-1">${entry.title || 'Journal Entry'}</h6>
-                                                    <p class="card-text small mb-1">${entry.content}</p>
-                                                    <small class="text-muted">
-                                                        ${new Date(entry.entry_date).toLocaleDateString()}
-                                                        ${entry.mood ? ` • Mood: ${entry.mood}` : ''}
-                                                    </small>
+                                            <div class="linked-entry-card">
+                                                <div class="linked-entry-title">${RichTextEditor.escapeHtml(entry.title || 'Journal Entry')}</div>
+                                                <div class="linked-entry-content">${RichTextEditor.contentToHtml(entry.content)}</div>
+                                                <div class="linked-entry-meta">
+                                                    <span><i class="fas fa-calendar"></i> ${new Date(entry.entry_date).toLocaleDateString()}</span>
+                                                    ${entry.mood ? `<span><i class="fas fa-smile"></i> ${RichTextEditor.escapeHtml(entry.mood)}</span>` : ''}
                                                 </div>
                                             </div>
                                         `).join('')}
                                     </div>
-                                </div>
-                            ` : `
-                                <div class="mt-3 text-center">
-                                    <p class="text-muted">No journal entries for this fast period.</p>
-                                </div>
-                            `}
+                                ` : `
+                                    <p class="fast-detail-empty">No journal entries linked to this fast.</p>
+                                `}
+                            </div>
+
+                            <div class="fast-detail-section">
+                                <h6 class="fast-detail-section-title"><i class="fas fa-praying-hands"></i> Prayers</h6>
+                                ${fast.prayers && fast.prayers.length > 0 ? `
+                                    <div class="linked-entries-list">
+                                        ${fast.prayers.map(prayer => `
+                                            <div class="linked-entry-card">
+                                                <div class="linked-entry-title">${RichTextEditor.escapeHtml(prayer.title)}</div>
+                                                <div class="linked-entry-content">${RichTextEditor.contentToHtml(prayer.description)}</div>
+                                                <div class="linked-entry-meta">
+                                                    <span><i class="fas fa-calendar"></i> ${new Date(prayer.created_at).toLocaleDateString()}</span>
+                                                    ${prayer.status === 'answered' ? '<span class="linked-entry-answered"><i class="fas fa-check-circle"></i> Answered</span>' : ''}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : `
+                                    <p class="fast-detail-empty">No prayers linked to this fast.</p>
+                                `}
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

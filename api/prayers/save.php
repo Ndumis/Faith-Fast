@@ -57,6 +57,7 @@ try {
         'description' => $input['description'],
         'category' => $input['category'] ?? 'personal',
         'status' => 'active',
+        'user_fast_id' => !empty($input['user_fast_id']) ? (int)$input['user_fast_id'] : null,
         'created_at' => date('Y-m-d H:i:s'),
         'updated_at' => date('Y-m-d H:i:s')
     ];

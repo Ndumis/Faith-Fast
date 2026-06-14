@@ -93,7 +93,18 @@ class Groups {
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="groupDescription" class="form-label">Description</label>
-                                        <textarea class="form-control" id="groupDescription" rows="3"></textarea>
+                                        <div class="richtext-toolbar" role="toolbar" aria-label="Text formatting">
+                                            <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                                            <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                                            <button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                                            <span class="toolbar-divider"></span>
+                                            <button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+                                            <button type="button" class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                                            <span class="toolbar-divider"></span>
+                                            <button type="button" class="toolbar-btn" data-command="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+                                        </div>
+                                        <div id="groupDescription" class="form-control richtext-content" contenteditable="true"
+                                             data-placeholder="Describe your group..."></div>
                                     </div>
                                     <div class="mb-3">
                                         <div class="form-check">
@@ -176,6 +187,7 @@ class Groups {
             </div>
         `;
 
+        RichTextEditor.bindAll(container);
         this.renderGroups();
         this.bindEvents();
     }
@@ -221,7 +233,7 @@ class Groups {
 									</span>
 								</div>
 							</div>
-							<p class="card-text text-muted small">${this.escapeHtml(group.description || 'No description')}</p>
+							<div class="card-text text-muted small">${group.description ? RichTextEditor.contentToHtml(group.description) : 'No description'}</div>
 							<div class="group-meta">
 								<small class="text-muted">
 									<i class="fas fa-users"></i> ${group.member_count} members
@@ -290,7 +302,7 @@ class Groups {
 					<div class="card group-card h-100" data-group-id="${group.id}">
 						<div class="card-body">
 							<h5 class="card-title">${this.escapeHtml(group.name)}</h5>
-							<p class="card-text text-muted small">${this.escapeHtml(group.description || 'No description')}</p>
+							<div class="card-text text-muted small">${group.description ? RichTextEditor.contentToHtml(group.description) : 'No description'}</div>
 							<div class="group-meta">
 								<small class="text-muted">
 									<i class="fas fa-users"></i> ${group.member_count} members
@@ -368,6 +380,13 @@ class Groups {
     hideCreateForm() {
         document.getElementById('createGroupSection').classList.add('d-none');
         document.getElementById('createGroupForm').reset();
+
+        const descriptionInput = document.getElementById('groupDescription');
+        if (descriptionInput) descriptionInput.innerHTML = '';
+
+        document.querySelectorAll('#createGroupSection .richtext-toolbar .toolbar-btn.active').forEach(btn => {
+            btn.classList.remove('active');
+        });
     }
 
     async handleCreateGroup(e) {
@@ -382,7 +401,7 @@ class Groups {
 		
 		const formData = {
 			name: document.getElementById('groupName').value,
-			description: document.getElementById('groupDescription').value,
+			description: RichTextEditor.sanitizeHtml(document.getElementById('groupDescription').innerHTML),
 			category: document.getElementById('groupCategory').value,
 			tags: document.getElementById('groupTags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
 			is_public: document.getElementById('isPublic').checked ? 1 : 0,
@@ -588,7 +607,18 @@ class Groups {
 									</div>
 									<div class="mb-3">
 										<label for="editGroupDescription" class="form-label">Description</label>
-										<textarea class="form-control" id="editGroupDescription" rows="3">${this.escapeHtml(group.description || '')}</textarea>
+										<div class="richtext-toolbar" role="toolbar" aria-label="Text formatting">
+											<button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+											<button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+											<button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+											<span class="toolbar-divider"></span>
+											<button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+											<button type="button" class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+											<span class="toolbar-divider"></span>
+											<button type="button" class="toolbar-btn" data-command="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+										</div>
+										<div id="editGroupDescription" class="form-control richtext-content" contenteditable="true"
+											 data-placeholder="Describe your group...">${RichTextEditor.contentToHtml(group.description || '')}</div>
 									</div>
 								</div>
 								<div class="col-md-6">
@@ -628,9 +658,11 @@ class Groups {
 			</div>
 		`;
 
+		RichTextEditor.bindAll(container);
+
 		// Add event listeners for management actions
 		this.bindManagementEvents(group.id);
-		
+
 		// Back button
 		document.getElementById('backToGroupsList').addEventListener('click', () => {
 			this.currentView = 'list';
@@ -750,7 +782,7 @@ class Groups {
 								</div>
 								<div class="mt-3">
 									<h5>Description</h5>
-									<p>${this.escapeHtml(group.description || 'No description provided.')}</p>
+									<div>${group.description ? RichTextEditor.contentToHtml(group.description) : 'No description provided.'}</div>
 								</div>
 								${group.tags ? `
 									<div class="mt-3">
@@ -860,7 +892,7 @@ class Groups {
 		// Search filter
 		if (searchQuery) {
 			const matchesName = group.name.toLowerCase().includes(searchQuery);
-			const matchesDescription = group.description.toLowerCase().includes(searchQuery);
+			const matchesDescription = RichTextEditor.getPlainText(group.description).toLowerCase().includes(searchQuery);
 			const matchesCategory = group.category.toLowerCase().includes(searchQuery);
 			if (!matchesName && !matchesDescription && !matchesCategory) return false;
 		}

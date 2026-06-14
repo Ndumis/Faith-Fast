@@ -6,20 +6,23 @@ class Prayers {
         this.editingPrayerId = null;
         this.isFormVisible = false;
         this.eventListenersBound = false; // Track if events are bound
+        this.activeFasts = [];
     }
 
     async init() {
         console.log('Initializing Prayers tab...');
-    
+
         if (!this.isPrayersPage()) {
             console.log('Not on prayers page, skipping initialization');
             return;
         }
-        
+
         try {
             await this.loadPrayers();
+            await this.loadActiveFasts();
             this.bindEvents();
             this.renderPrayers();
+            this.populateFastDropdown();
             this.hideForm();
             this.createInlineSearchFilter();
             console.log('✅ Prayers tab initialized successfully');
@@ -130,6 +133,14 @@ class Prayers {
 
         this.eventListenersBound = true;
         console.log('Prayers events bound successfully');
+
+        this.bindToolbar();
+    }
+
+    bindToolbar() {
+        const toolbar = document.querySelector('.prayer-editor .richtext-toolbar');
+        const content = document.getElementById('prayerDescription');
+        RichTextEditor.bindToolbar(toolbar, content);
     }
 
     cleanupEventElements() {
@@ -192,6 +203,35 @@ class Prayers {
         }
     }
 
+    async loadActiveFasts() {
+        try {
+            const response = await AuthHelper.apiCall('fasting/active.php');
+            this.activeFasts = response.success ? (response.fasts || []) : [];
+        } catch (error) {
+            console.error('Error loading active fasts:', error);
+            this.activeFasts = [];
+        }
+    }
+
+    populateFastDropdown() {
+        const select = document.getElementById('prayerFast');
+        if (!select) return;
+
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">None</option>';
+
+        this.activeFasts.forEach(fast => {
+            const option = document.createElement('option');
+            option.value = fast.id;
+            const startDate = new Date(fast.start_date).toLocaleDateString();
+            const endDate = new Date(fast.end_date).toLocaleDateString();
+            option.textContent = `${fast.plan_name || 'Custom Fast'} (${startDate} - ${endDate})`;
+            select.appendChild(option);
+        });
+
+        select.value = currentValue;
+    }
+
     async savePrayer() {
         console.log('savePrayer method called');
         
@@ -213,7 +253,8 @@ class Prayers {
             const titleInput = document.getElementById('prayerTitle');
             const categoryInput = document.getElementById('prayerCategory');
             const descriptionInput = document.getElementById('prayerDescription');
-            
+            const fastInput = document.getElementById('prayerFast');
+
             if (!titleInput || !categoryInput || !descriptionInput) {
                 this.showNotification('Prayer form elements not found', 'error');
                 this.isSaving = false;
@@ -222,9 +263,10 @@ class Prayers {
 
             const title = titleInput.value.trim();
             const category = categoryInput.value;
-            const description = descriptionInput.value.trim();
+            const description = RichTextEditor.sanitizeHtml(descriptionInput.innerHTML);
+            const userFastId = fastInput && fastInput.value ? parseInt(fastInput.value) : null;
 
-            if (!title || !description) {
+            if (!title || !RichTextEditor.getPlainText(description)) {
                 this.showNotification('Please fill in title and description', 'error');
                 this.isSaving = false;
                 return;
@@ -235,7 +277,8 @@ class Prayers {
             const response = await AuthHelper.apiCall('prayers/save.php', 'POST', {
                 title: title,
                 description: description,
-                category: category
+                category: category,
+                user_fast_id: userFastId
             });
 
             if (response.success) {
@@ -330,17 +373,17 @@ class Prayers {
                             <button class="btn btn-success btn-small mark-answered" data-prayer-id="${prayer.id}">
                                 <i class="fas fa-check"></i> Mark Answered
                             </button>
+                            <button class="btn btn-outline btn-small edit-prayer" data-prayer-id="${prayer.id}">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-outline btn-small delete-prayer" data-prayer-id="${prayer.id}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
                         ` : `
                             <span class="answered-badge">
                                 <i class="fas fa-check-circle"></i> Answered
                             </span>
                         `}
-                        <button class="btn btn-outline btn-small edit-prayer" data-prayer-id="${prayer.id}">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-outline btn-small delete-prayer" data-prayer-id="${prayer.id}">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
                     </div>
                 </div>
             </div>
@@ -413,12 +456,14 @@ class Prayers {
             const titleInput = document.getElementById('prayerTitle');
             const categoryInput = document.getElementById('prayerCategory');
             const descriptionInput = document.getElementById('prayerDescription');
+            const fastInput = document.getElementById('prayerFast');
             const saveButton = document.getElementById('savePrayer');
-            
+
             if (titleInput) titleInput.value = prayer.title;
             if (categoryInput) categoryInput.value = prayer.category;
-            if (descriptionInput) descriptionInput.value = prayer.description;
-            
+            if (descriptionInput) descriptionInput.innerHTML = RichTextEditor.contentToHtml(prayer.description);
+            if (fastInput) fastInput.value = prayer.user_fast_id || '';
+
             this.editingPrayerId = prayerId;
             
             if (saveButton) {
@@ -445,7 +490,8 @@ class Prayers {
             const titleInput = document.getElementById('prayerTitle');
             const categoryInput = document.getElementById('prayerCategory');
             const descriptionInput = document.getElementById('prayerDescription');
-            
+            const fastInput = document.getElementById('prayerFast');
+
             if (!titleInput || !categoryInput || !descriptionInput) {
                 this.showNotification('Form elements not found', 'error');
                 this.isSaving = false;
@@ -454,9 +500,10 @@ class Prayers {
 
             const title = titleInput.value.trim();
             const category = categoryInput.value;
-            const description = descriptionInput.value.trim();
+            const description = RichTextEditor.sanitizeHtml(descriptionInput.innerHTML);
+            const userFastId = fastInput && fastInput.value ? parseInt(fastInput.value) : null;
 
-            if (!title || !description) {
+            if (!title || !RichTextEditor.getPlainText(description)) {
                 this.showNotification('Please fill in title and description', 'error');
                 this.isSaving = false;
                 return;
@@ -466,7 +513,8 @@ class Prayers {
                 id: prayerId,
                 title: title,
                 category: category,
-                description: description
+                description: description,
+                user_fast_id: userFastId
             });
 
             if (response.success) {
@@ -520,9 +568,9 @@ class Prayers {
         
         // Apply search filter
         if (this.searchQuery) {
-            filtered = filtered.filter(prayer => 
+            filtered = filtered.filter(prayer =>
                 prayer.title.toLowerCase().includes(this.searchQuery) ||
-                prayer.description.toLowerCase().includes(this.searchQuery) ||
+                RichTextEditor.getPlainText(prayer.description).toLowerCase().includes(this.searchQuery) ||
                 (prayer.category && prayer.category.toLowerCase().includes(this.searchQuery))
             );
         }
@@ -537,14 +585,16 @@ class Prayers {
         const titleInput = document.getElementById('prayerTitle');
         const categoryInput = document.getElementById('prayerCategory');
         const descriptionInput = document.getElementById('prayerDescription');
+        const fastInput = document.getElementById('prayerFast');
         const saveButton = document.getElementById('savePrayer');
-        
+
         if (titleInput) titleInput.value = '';
         if (categoryInput) categoryInput.value = 'personal';
-        if (descriptionInput) descriptionInput.value = '';
-        
+        if (descriptionInput) descriptionInput.innerHTML = '';
+        if (fastInput) fastInput.value = '';
+
         this.editingPrayerId = null;
-        
+
         if (saveButton) {
             saveButton.innerHTML = '<i class="fas fa-save"></i> Save Prayer';
             saveButton.classList.remove('editing');
@@ -554,10 +604,14 @@ class Prayers {
         if (cancelButton) {
             cancelButton.remove();
         }
+
+        document.querySelectorAll('.prayer-editor .richtext-toolbar .toolbar-btn.active').forEach(btn => {
+            btn.classList.remove('active');
+        });
     }
 
     formatPrayerContent(content) {
-        return content.replace(/\n/g, '<br>');
+        return RichTextEditor.contentToHtml(content);
     }
 
     escapeHtml(text) {
