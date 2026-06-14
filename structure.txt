@@ -1,0 +1,54 @@
+faith-fast/
+├── index.html
+├── dashboard.html
+├── css/
+│   └── style.css
+├── js/
+│   ├── app.js
+│   ├── auth.js
+│   ├── dashboard.js
+│   ├── fasting.js
+│   ├── journal.js
+│   ├── prayers.js
+│   ├── chat.js
+│   ├── groups.js
+│   ├── bible.js
+│   └── profile.js
+├── api/
+│   ├── config.php
+│   ├── Database.php
+│   ├── CRUD.php
+│   ├── auth/
+│   │   ├── register.php
+│   │   ├── login.php
+│   │   └── forgot-password.php
+│   ├── fasting/
+│   │   ├── plans.php
+│   │   ├── start.php
+│   │   ├── active.php
+│   │   ├── update.php
+│   │   └── end.php
+│   ├── journal/
+│   │   ├── save.php
+│   │   └── entries.php
+│   ├── prayers/
+│   │   ├── save.php
+│   │   ├── list.php
+│   │   └── update.php
+│   ├── chat/
+│   │   ├── send.php
+│   │   ├── messages.php
+│   │   ├── groups.php
+│   │   └── users.php
+│   ├── groups/
+│   │   ├── list.php
+│   │   ├── join.php
+│   │   └── manage.php
+│   ├── bible/
+│   │   └── verses.php
+│   └── profile/
+│       ├── update.php
+│       └── password.php
+└── assets/
+    ├── images/
+    └── icons/
