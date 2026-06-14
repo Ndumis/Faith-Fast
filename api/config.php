@@ -99,11 +99,39 @@ function getAuthUser() {
 
 function escapeTableName($tableName) {
     $reservedKeywords = ['groups', 'order', 'select', 'insert', 'update', 'delete', 'where', 'table'];
-    
+
     if (in_array(strtolower($tableName), $reservedKeywords)) {
         return "`$tableName`";
     }
-    
+
     return $tableName;
+}
+
+// Marks any of this user's fasts whose end_date has already passed but are
+// still 'active' as 'completed' (progress 100%), so the rest of the app
+// reflects reality even if the user never pressed "End Fast". Compared
+// using PHP's clock for consistency with the rest of the app's date checks.
+function autoCompleteExpiredFasts($db, $user_id) {
+    $sql = "SELECT id, end_date FROM user_fasts WHERE user_id = ? AND status = 'active'";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $expiredFastIds = [];
+    while ($row = $result->fetch_assoc()) {
+        if (strtotime($row['end_date']) < time()) {
+            $expiredFastIds[] = (int)$row['id'];
+        }
+    }
+    $stmt->close();
+
+    if (!empty($expiredFastIds)) {
+        $placeholders = implode(',', array_fill(0, count($expiredFastIds), '?'));
+        $types = str_repeat('i', count($expiredFastIds));
+        $stmt = $db->prepare("UPDATE user_fasts SET status = 'completed', progress_percent = 100 WHERE id IN ($placeholders)");
+        $stmt->bind_param($types, ...$expiredFastIds);
+        $stmt->execute();
+        $stmt->close();
+    }
 }
 ?>

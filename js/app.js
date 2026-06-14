@@ -265,6 +265,11 @@ class FaithFastApp {
                     case 'fasting':
                         if (typeof Fasting !== 'undefined') {
                             this.fasting = new Fasting();
+                            // The Fasting tab's rendered HTML uses inline
+                            // onclick="fastingApp...." handlers, so the global
+                            // reference must point at the instance that actually
+                            // loaded the data and rendered the markup.
+                            window.fastingApp = this.fasting;
                             this.fasting.init().catch(error => {
                                 console.error('❌ Fasting initialization failed:', error);
                             });
