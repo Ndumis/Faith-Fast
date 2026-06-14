@@ -125,7 +125,7 @@ class Resources {
                     </div>
                     
                     <h5 class="card-title">${this.escapeHtml(resource.title)}</h5>
-                    <p class="card-text">${this.escapeHtml(resource.description || 'No description provided.')}</p>
+                    <div class="card-text">${resource.description ? RichTextEditor.contentToHtml(resource.description) : 'No description provided.'}</div>
                     
                     ${this.renderMediaPreview(resource)}
                     
@@ -294,7 +294,15 @@ class Resources {
             });
         }
 
+        this.bindToolbar();
+
         console.log('Resources events bound successfully');
+    }
+
+    bindToolbar() {
+        const toolbar = document.querySelector('.resource-editor .richtext-toolbar');
+        const content = document.getElementById('resourceDescription');
+        RichTextEditor.bindToolbar(toolbar, content);
     }
 
     bindResourceActions() {
@@ -366,7 +374,7 @@ class Resources {
             const saveButton = document.getElementById('saveResource');
             
             if (titleInput) titleInput.value = resource.title;
-            if (descriptionInput) descriptionInput.value = resource.description || '';
+            if (descriptionInput) descriptionInput.innerHTML = RichTextEditor.contentToHtml(resource.description || '');
             if (categoryInput) categoryInput.value = resource.category;
             if (urlInput) urlInput.value = resource.file_url || '';
             
@@ -402,7 +410,7 @@ class Resources {
 
         const title = titleInput.value.trim();
         const category = categoryInput.value;
-        const description = document.getElementById('resourceDescription').value.trim();
+        const description = RichTextEditor.sanitizeHtml(document.getElementById('resourceDescription').innerHTML);
 
         if (!title || !category) {
             this.showNotification('Please fill in title and category', 'error');
@@ -414,12 +422,12 @@ class Resources {
             formData.append('title', title);
             formData.append('description', description);
             formData.append('category', category);
-            
+
             const fileInput = document.getElementById('resourceFile');
             if (fileInput.files[0]) {
                 formData.append('file', fileInput.files[0]);
             }
-            
+
             const urlInput = document.getElementById('resourceUrl');
             if (urlInput.value.trim()) {
                 formData.append('url', urlInput.value.trim());
@@ -454,7 +462,7 @@ class Resources {
 
         const title = titleInput.value.trim();
         const category = categoryInput.value;
-        const description = document.getElementById('resourceDescription').value.trim();
+        const description = RichTextEditor.sanitizeHtml(document.getElementById('resourceDescription').innerHTML);
 
         if (!title || !category) {
             this.showNotification('Please fill in title and category', 'error');
@@ -541,7 +549,7 @@ class Resources {
         const saveButton = document.getElementById('saveResource');
         
         if (titleInput) titleInput.value = '';
-        if (descriptionInput) descriptionInput.value = '';
+        if (descriptionInput) descriptionInput.innerHTML = '';
         if (categoryInput) categoryInput.value = '';
         if (fileInput) fileInput.value = '';
         if (urlInput) urlInput.value = '';

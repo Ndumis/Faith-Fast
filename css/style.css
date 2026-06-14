@@ -1379,3 +1379,567 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== JOURNAL TAB ===== */
+.journal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.journal-editor {
+  animation: editorExpand 0.35s ease;
+}
+
+@keyframes editorExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Formatting toolbar (shared by journal, prayers, resources, fasting, groups) */
+.richtext-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.4rem;
+  background: var(--light-gray);
+  border: 1px solid var(--medium-gray);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.toolbar-btn:hover {
+  background: var(--medium-gray);
+  color: var(--primary);
+}
+
+.toolbar-btn.active {
+  background: var(--primary);
+  color: var(--secondary);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 0.25rem;
+  background: var(--medium-gray);
+}
+
+/* Rich text content editor (shared by journal, prayers, resources, fasting, groups) */
+.richtext-content {
+  min-height: 180px;
+  max-height: 360px;
+  overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+  line-height: 1.6;
+  cursor: text;
+}
+
+.richtext-content:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.richtext-content:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-light);
+  pointer-events: none;
+}
+
+.richtext-content ul,
+.richtext-content ol {
+  margin: 0.5rem 0 0.5rem 1.5rem;
+}
+
+#saveJournalEntry {
+  margin-right: 0.75rem;
+}
+
+/* Entries / list section headers (journal, prayers, resources, etc.) */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-header h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-controls .form-select {
+  width: auto;
+}
+
+.filter-controls .form-control {
+  min-width: 180px;
+  width: auto;
+}
+
+.search-filter-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.search-filter-container .form-control,
+.search-filter-container .form-select {
+  width: auto;
+}
+
+.search-filter-container .form-control {
+  min-width: 200px;
+}
+
+.entries-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.entries-list .no-data-message {
+  grid-column: 1 / -1;
+}
+
+.journal-entry .card-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.entry-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.entry-header h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+  word-break: break-word;
+}
+
+.entry-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
+.entry-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.entry-content {
+  color: var(--accent);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.entry-content ul,
+.entry-content ol {
+  margin: 0.5rem 0 0.5rem 1.5rem;
+}
+
+.entry-content .content-full {
+  display: none;
+}
+
+.entry-content.expanded .content-preview {
+  display: none;
+}
+
+.entry-content.expanded .content-full {
+  display: block;
+}
+
+.entry-footer {
+  margin-top: 0.75rem;
+}
+
+.no-data-message {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-light);
+}
+
+.no-data-message i {
+  display: block;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+@media (max-width: 992px) {
+  .filter-controls .form-control {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .entries-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== PRAYERS TAB ===== */
+.prayers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.prayer-editor {
+  animation: editorExpand 0.35s ease;
+}
+
+.prayers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.prayers-grid .no-data-message {
+  grid-column: 1 / -1;
+}
+
+.prayer-item .card-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.prayer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prayer-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.prayer-title h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+  word-break: break-word;
+  margin: 0;
+}
+
+.prayer-title .prayer-category {
+  text-transform: capitalize;
+  background: var(--light-gray);
+  color: var(--accent);
+}
+
+.prayer-status {
+  flex-shrink: 0;
+}
+
+.status-badge {
+  text-transform: capitalize;
+  background: var(--medium-gray);
+  color: var(--accent);
+}
+
+.prayer-status.answered .status-badge {
+  background: var(--success);
+  color: var(--secondary);
+}
+
+.prayer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
+.prayer-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.answered-date {
+  color: var(--success);
+}
+
+.prayer-description {
+  color: var(--accent);
+  line-height: 1.6;
+  word-break: break-word;
+  margin-bottom: 1rem;
+}
+
+.prayer-description ul,
+.prayer-description ol {
+  margin: 0.5rem 0 0.5rem 1.5rem;
+}
+
+.prayer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.answered-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--success);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .prayers-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== FAST DETAILS MODAL ===== */
+.fast-details-modal .modal-header {
+  border-bottom: 1px solid var(--medium-gray);
+}
+
+.fast-details-modal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.fast-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.fast-detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: var(--light-gray);
+  color: var(--accent);
+}
+
+.fast-detail-badge.difficulty-beginner { background: rgba(40, 167, 69, 0.12); color: var(--success); }
+.fast-detail-badge.difficulty-intermediate { background: rgba(255, 193, 7, 0.18); color: #997404; }
+.fast-detail-badge.difficulty-advanced { background: rgba(220, 53, 69, 0.12); color: var(--error); }
+
+.fast-detail-badge.status-active { background: rgba(40, 167, 69, 0.12); color: var(--success); }
+.fast-detail-badge.status-completed { background: var(--primary); color: var(--secondary); }
+.fast-detail-badge.status-paused { background: rgba(255, 193, 7, 0.18); color: #997404; }
+.fast-detail-badge.status-cancelled { background: var(--medium-gray); color: var(--text-light); }
+
+.fast-progress-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.fast-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+
+.fast-progress-bar {
+  height: 8px;
+  background: var(--medium-gray);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.fast-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.fast-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.fast-detail-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  background: var(--light-gray);
+  border-radius: 8px;
+}
+
+.fast-detail-stat i {
+  font-size: 1.1rem;
+  color: var(--accent);
+  width: 1.25rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.fast-detail-stat .stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fast-detail-stat .stat-value {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.fast-detail-section {
+  margin-top: 1.5rem;
+}
+
+.fast-detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}
+
+.fast-detail-content {
+  background: var(--light-gray);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  color: var(--accent);
+  line-height: 1.6;
+}
+
+.linked-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.linked-entry-card {
+  background: var(--light-gray);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.linked-entry-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.linked-entry-content {
+  font-size: 0.85rem;
+  color: var(--accent);
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.linked-entry-content ul,
+.linked-entry-content ol {
+  margin: 0.4rem 0 0.4rem 1.5rem;
+}
+
+.linked-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+
+.linked-entry-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.linked-entry-answered {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.fast-detail-empty {
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+}
+
+@media (max-width: 576px) {
+  .fast-detail-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

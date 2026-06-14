@@ -4,21 +4,23 @@ class Journal {
         this.currentFilter = 'recent';
         this.searchQuery = '';
         this.editingEntryId = null;
-        this.isFormVisible = false;
+        this.activeFasts = [];
     }
 
     async init() {
         console.log('Initializing Journal tab...');
-        
+
         if (!this.isJournalPage()) {
             console.log('Not on journal page, skipping initialization');
             return;
         }
-        
+
         try {
             await this.loadEntries();
+            await this.loadActiveFasts();
             this.bindEvents();
             this.renderEntries();
+            this.populateFastDropdown();
             this.hideForm();
             console.log('✅ Journal tab initialized successfully');
         } catch (error) {
@@ -33,30 +35,41 @@ class Journal {
 
     bindEvents() {
         console.log('Binding journal events...');
-        
+
         const saveButton = document.getElementById('saveJournalEntry');
         const filterSelect = document.getElementById('journalFilter');
         const searchInput = document.getElementById('journalSearch');
         const newEntryButton = document.getElementById('newJournalEntry');
-        
+
         if (saveButton) {
             saveButton.replaceWith(saveButton.cloneNode(true));
             document.getElementById('saveJournalEntry').addEventListener('click', () => this.saveEntry());
         }
-        
+
         if (filterSelect) {
             filterSelect.addEventListener('change', (e) => this.filterEntries(e.target.value));
         }
-        
+
         if (searchInput) {
             searchInput.addEventListener('input', (e) => this.searchEntries(e.target.value));
         }
-        
+
         if (newEntryButton) {
-            newEntryButton.addEventListener('click', () => this.showForm());
+            newEntryButton.addEventListener('click', () => {
+                this.clearForm();
+                this.showForm();
+            });
         }
 
+        this.bindToolbar();
+
         console.log('Journal events bound successfully');
+    }
+
+    bindToolbar() {
+        const toolbar = document.querySelector('.journal-editor .richtext-toolbar');
+        const content = document.getElementById('journalContent');
+        RichTextEditor.bindToolbar(toolbar, content);
     }
 
     async loadEntries() {
@@ -74,35 +87,63 @@ class Journal {
         }
     }
 
+    async loadActiveFasts() {
+        try {
+            const response = await AuthHelper.apiCall('fasting/active.php');
+            this.activeFasts = response.success ? (response.fasts || []) : [];
+        } catch (error) {
+            console.error('Error loading active fasts:', error);
+            this.activeFasts = [];
+        }
+    }
+
+    populateFastDropdown() {
+        const select = document.getElementById('journalFast');
+        if (!select) return;
+
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">None</option>';
+
+        this.activeFasts.forEach(fast => {
+            const option = document.createElement('option');
+            option.value = fast.id;
+            const startDate = new Date(fast.start_date).toLocaleDateString();
+            const endDate = new Date(fast.end_date).toLocaleDateString();
+            option.textContent = `${fast.plan_name || 'Custom Fast'} (${startDate} - ${endDate})`;
+            select.appendChild(option);
+        });
+
+        select.value = currentValue;
+    }
+
     showForm() {
         const editor = document.querySelector('.journal-editor');
+
+        if (!document.getElementById('cancelJournalEntry')) {
+            const saveButton = document.getElementById('saveJournalEntry');
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.id = 'cancelJournalEntry';
+            cancelButton.className = 'btn btn-secondary';
+            cancelButton.innerHTML = '<i class="fas fa-times"></i> Cancel';
+            cancelButton.addEventListener('click', () => this.hideForm());
+
+            saveButton.parentNode.insertBefore(cancelButton, saveButton.nextSibling);
+        }
+
         if (editor) {
             editor.style.display = 'block';
-            this.isFormVisible = true;
-            
-            if (!document.getElementById('cancelJournalEntry')) {
-                const saveButton = document.getElementById('saveJournalEntry');
-                const cancelButton = document.createElement('button');
-                cancelButton.type = 'button';
-                cancelButton.id = 'cancelJournalEntry';
-                cancelButton.className = 'btn btn-secondary';
-                cancelButton.innerHTML = '<i class="fas fa-times"></i> Cancel';
-                cancelButton.addEventListener('click', () => this.hideForm());
-                
-                saveButton.parentNode.insertBefore(cancelButton, saveButton.nextSibling);
-            }
-            
-            editor.scrollIntoView({ behavior: 'smooth' });
+            editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        const titleInput = document.getElementById('journalTitle');
+        if (titleInput) titleInput.focus();
     }
 
     hideForm() {
         const editor = document.querySelector('.journal-editor');
-        if (editor) {
-            editor.style.display = 'none';
-            this.isFormVisible = false;
-            this.clearForm();
-        }
+        if (editor) editor.style.display = 'none';
+        this.clearForm();
     }
 
     async saveEntry() {
@@ -113,16 +154,18 @@ class Journal {
 
         const titleInput = document.getElementById('journalTitle');
         const contentInput = document.getElementById('journalContent');
-        
+        const fastInput = document.getElementById('journalFast');
+
         if (!titleInput || !contentInput) {
             this.showNotification('Journal form elements not found', 'error');
             return;
         }
 
         const title = titleInput.value.trim();
-        const content = contentInput.value.trim();
-        
-        if (!title || !content) {
+        const content = RichTextEditor.sanitizeHtml(contentInput.innerHTML);
+        const userFastId = fastInput && fastInput.value ? parseInt(fastInput.value) : null;
+
+        if (!title || !RichTextEditor.getPlainText(content)) {
             this.showNotification('Please fill in both title and content', 'error');
             return;
         }
@@ -131,7 +174,8 @@ class Journal {
             const response = await AuthHelper.apiCall('journal/save.php', 'POST', {
                 title: title,
                 content: content,
-                entry_date: new Date().toISOString().split('T')[0]
+                entry_date: new Date().toISOString().split('T')[0],
+                user_fast_id: userFastId
             });
 
             if (response.success) {
@@ -154,7 +198,7 @@ class Journal {
             console.error('Journal entries container not found');
             return;
         }
-        
+
         const filteredEntries = this.getFilteredEntries();
         console.log('Rendering entries:', filteredEntries.length);
 
@@ -168,11 +212,13 @@ class Journal {
             return;
         }
 
-        container.innerHTML = filteredEntries.map(entry => `
+        container.innerHTML = filteredEntries.map(entry => {
+            const plainText = RichTextEditor.getPlainText(entry.content);
+            return `
             <div class="journal-entry card" data-entry-id="${entry.id}">
                 <div class="card-body">
                     <div class="entry-header">
-                        <h4>${this.escapeHtml(entry.title)}</h4>
+                        <h4>${RichTextEditor.escapeHtml(entry.title)}</h4>
                         <div class="entry-actions">
                             <button class="btn-icon edit-entry" title="Edit" data-entry-id="${entry.id}">
                                 <i class="fas fa-edit"></i>
@@ -185,21 +231,21 @@ class Journal {
                     <div class="entry-meta">
                         <span class="entry-date">
                             <i class="fas fa-calendar"></i>
-                            ${new Date(entry.entry_date).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                            ${new Date(entry.entry_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                             })}
                         </span>
                         <span class="entry-length">
                             <i class="fas fa-file-alt"></i>
-                            ${entry.content.length} characters
+                            ${plainText.length} characters
                         </span>
                     </div>
                     <div class="entry-content">
                         ${this.formatContent(entry.content)}
                     </div>
-                    ${entry.content.length > 200 ? `
+                    ${plainText.length > 200 ? `
                     <div class="entry-footer">
                         <button class="btn btn-outline btn-small read-more" onclick="journal.toggleReadMore(this)">
                             Read More
@@ -208,20 +254,21 @@ class Journal {
                     ` : ''}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         this.bindEntryActions();
     }
 
-    // NEW METHOD: Toggle Read More functionality
+    // Toggle Read More / Read Less for long entries
     toggleReadMore(button) {
         const entry = button.closest('.journal-entry');
         const content = entry.querySelector('.entry-content');
         const isExpanded = content.classList.contains('expanded');
-        
+
         content.classList.toggle('expanded');
         button.textContent = isExpanded ? 'Read More' : 'Read Less';
-        
+
         // Smooth scroll to maintain reading position
         if (!isExpanded) {
             setTimeout(() => {
@@ -250,8 +297,6 @@ class Journal {
                 this.deleteEntry(entryId);
             });
         });
-
-        // Read more buttons are now handled by inline onclick for better reliability
     }
 
     editEntry(entryId) {
@@ -259,13 +304,15 @@ class Journal {
         if (entry) {
             const titleInput = document.getElementById('journalTitle');
             const contentInput = document.getElementById('journalContent');
+            const fastInput = document.getElementById('journalFast');
             const saveButton = document.getElementById('saveJournalEntry');
-            
+
             if (titleInput) titleInput.value = entry.title;
-            if (contentInput) contentInput.value = entry.content;
-            
+            if (contentInput) contentInput.innerHTML = RichTextEditor.contentToHtml(entry.content);
+            if (fastInput) fastInput.value = entry.user_fast_id || '';
+
             this.editingEntryId = entryId;
-            
+
             if (saveButton) {
                 saveButton.innerHTML = '<i class="fas fa-save"></i> Update Entry';
                 saveButton.classList.add('editing');
@@ -279,16 +326,18 @@ class Journal {
     async updateEntry(entryId) {
         const titleInput = document.getElementById('journalTitle');
         const contentInput = document.getElementById('journalContent');
-        
+        const fastInput = document.getElementById('journalFast');
+
         if (!titleInput || !contentInput) {
             this.showNotification('Form elements not found', 'error');
             return;
         }
 
         const title = titleInput.value.trim();
-        const content = contentInput.value.trim();
+        const content = RichTextEditor.sanitizeHtml(contentInput.innerHTML);
+        const userFastId = fastInput && fastInput.value ? parseInt(fastInput.value) : null;
 
-        if (!title || !content) {
+        if (!title || !RichTextEditor.getPlainText(content)) {
             this.showNotification('Please fill in both title and content', 'error');
             return;
         }
@@ -297,12 +346,12 @@ class Journal {
             const response = await AuthHelper.apiCall('journal/update.php', 'PUT', {
                 id: entryId,
                 title: title,
-                content: content
+                content: content,
+                user_fast_id: userFastId
             });
 
             if (response.success) {
                 this.showNotification('Entry updated successfully', 'success');
-                this.editingEntryId = null;
                 await this.loadEntries();
                 this.renderEntries();
                 this.hideForm();
@@ -319,7 +368,7 @@ class Journal {
         if (confirm('Are you sure you want to delete this journal entry? This action cannot be undone.')) {
             try {
                 const response = await AuthHelper.apiCall(`journal/delete.php?id=${entryId}`, 'DELETE');
-                
+
                 if (response.success) {
                     this.showNotification('Entry deleted successfully', 'success');
                     this.entries = this.entries.filter(entry => entry.id !== entryId);
@@ -348,9 +397,9 @@ class Journal {
         let filtered = [...this.entries];
 
         if (this.searchQuery) {
-            filtered = filtered.filter(entry => 
+            filtered = filtered.filter(entry =>
                 entry.title.toLowerCase().includes(this.searchQuery) ||
-                entry.content.toLowerCase().includes(this.searchQuery)
+                RichTextEditor.getPlainText(entry.content).toLowerCase().includes(this.searchQuery)
             );
         }
 
@@ -366,13 +415,15 @@ class Journal {
     clearForm() {
         const titleInput = document.getElementById('journalTitle');
         const contentInput = document.getElementById('journalContent');
+        const fastInput = document.getElementById('journalFast');
         const saveButton = document.getElementById('saveJournalEntry');
-        
+
         if (titleInput) titleInput.value = '';
-        if (contentInput) contentInput.value = '';
-        
+        if (contentInput) contentInput.innerHTML = '';
+        if (fastInput) fastInput.value = '';
+
         this.editingEntryId = null;
-        
+
         if (saveButton) {
             saveButton.innerHTML = '<i class="fas fa-save"></i> Save Entry';
             saveButton.classList.remove('editing');
@@ -382,29 +433,24 @@ class Journal {
         if (cancelButton) {
             cancelButton.remove();
         }
+
+        document.querySelectorAll('.journal-editor .richtext-toolbar .toolbar-btn.active').forEach(btn => {
+            btn.classList.remove('active');
+        });
     }
 
     formatContent(content) {
-        const formattedContent = content.replace(/\n/g, '<br>');
-        
-        if (content.length > 200) {
+        const html = RichTextEditor.contentToHtml(content);
+        const plainText = RichTextEditor.getPlainText(content);
+
+        if (plainText.length > 200) {
             return `
-                <div class="content-preview">
-                    ${this.escapeHtml(content.substring(0, 200))}...
-                </div>
-                <div class="content-full">
-                    ${formattedContent}
-                </div>
+                <div class="content-preview">${RichTextEditor.truncateHtml(html, 200)}...</div>
+                <div class="content-full">${html}</div>
             `;
         }
-        
-        return formattedContent;
-    }
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return html;
     }
 
     loadDemoEntries() {

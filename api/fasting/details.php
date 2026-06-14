@@ -49,15 +49,25 @@ try {
         exit;
     }
     
-    // Get journal entries for this fast
-    $journalSql = "SELECT * FROM journal_entries 
-                   WHERE user_id = ? AND entry_date BETWEEN ? AND ?
-                   ORDER BY entry_date DESC";
+    // Get journal entries linked to this fast
+    $journalSql = "SELECT * FROM journal_entries
+                   WHERE user_id = ? AND user_fast_id = ?
+                   ORDER BY entry_date DESC, created_at DESC";
     $journalStmt = $db->prepare($journalSql);
-    $journalStmt->bind_param('iss', $user_id, $fast['start_date'], $fast['end_date']);
+    $journalStmt->bind_param('ii', $user_id, $fast_id);
     $journalStmt->execute();
     $journalResult = $journalStmt->get_result();
     $fast['journal_entries'] = $journalResult->fetch_all(MYSQLI_ASSOC);
+
+    // Get prayers linked to this fast
+    $prayersSql = "SELECT * FROM prayer_requests
+                   WHERE user_id = ? AND user_fast_id = ?
+                   ORDER BY created_at DESC";
+    $prayersStmt = $db->prepare($prayersSql);
+    $prayersStmt->bind_param('ii', $user_id, $fast_id);
+    $prayersStmt->execute();
+    $prayersResult = $prayersStmt->get_result();
+    $fast['prayers'] = $prayersResult->fetch_all(MYSQLI_ASSOC);
     
     // Calculate statistics
     $start = new DateTime($fast['start_date']);

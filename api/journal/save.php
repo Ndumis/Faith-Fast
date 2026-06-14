@@ -28,6 +28,7 @@ try {
         'title' => $input['title'],
         'content' => $input['content'],
         'entry_date' => $input['entry_date'],
+        'user_fast_id' => !empty($input['user_fast_id']) ? (int)$input['user_fast_id'] : null,
         'created_at' => date('Y-m-d H:i:s')
     ];
     
