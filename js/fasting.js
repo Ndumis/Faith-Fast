@@ -6,23 +6,23 @@ class Fasting {
         this.upcomingFasts = [];
         this.isAuthenticated = false;
         this.isTabActive = false;
-        this.plansVisible = false;
+        this.activeSubtab = 'active';
+        this.historyPage = 1;
+        this.historyPageSize = 5;
+        this.planSearchQuery = '';
     }
 
     async init() {
-        this.isTabActive = window.location.hash === '#fasting' || 
+        this.isTabActive = window.location.hash === '#fasting' ||
                           document.getElementById('fasting-tab')?.classList.contains('active');
-        
+
         if (!this.isTabActive) {
             console.log('Fasting tab not active, skipping initialization');
             return;
         }
 
         this.isAuthenticated = AuthHelper.isAuthenticated();
-        
-        // Hide plans by default
-        this.plansVisible = false;
-        
+
         await this.loadPlans();
         
         if (this.isAuthenticated) {
@@ -35,37 +35,6 @@ class Fasting {
         this.startTimers();
     }
 	
-	async loadPlans() {
-        try {
-            const response = await fetch('api/fasting/plans.php');
-            if (!response.ok) {
-                throw new Error('Failed to fetch fasting plans');
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                this.plans = data.plans;
-                this.updatePlansVisibility(); // Update visibility based on flag
-            } else {
-                console.error('Error loading plans:', data.message);
-                this.plans = [];
-                this.showNoPlansMessage(true);
-            }
-        } catch (error) {
-            console.error('Error loading fasting plans:', error);
-            this.plans = [];
-            this.showNoPlansMessage(true);
-        }
-    }
-	
-	showNoPlansMessage(show) {
-        const containerEl = document.getElementById('fastingPlansContainer');
-        const noPlansEl = document.getElementById('noPlansMessage');
-        
-        if (containerEl) containerEl.style.display = show && this.plans.length === 0 ? 'block' : 'none';
-        if (noPlansEl) noPlansEl.style.display = show && this.plans.length === 0 ? 'block' : 'none';
-    }
-
     shouldRender() {
         const fastingTab = document.getElementById('fasting-tab');
         return fastingTab && fastingTab.classList.contains('active') && 
@@ -75,29 +44,16 @@ class Fasting {
 	updatePlansVisibility() {
         const container = document.getElementById('fastingPlansContainer');
         const noPlansEl = document.getElementById('noPlansMessage');
-        const refreshBtn = document.getElementById('refreshPlansBtn');
-        
-        if (!container || !refreshBtn) return;
-        
-        if (this.plansVisible && this.plans.length > 0) {
-            // Show plans in 3-column layout
+
+        if (!container || !noPlansEl) return;
+
+        if (this.plans.length > 0) {
             container.style.display = 'block';
             noPlansEl.style.display = 'none';
-            refreshBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Fasting Plans';
-            refreshBtn.setAttribute('data-action', 'hide-plans');
             this.renderFastingPlans();
-        } else if (this.plansVisible && this.plans.length === 0) {
-            // Show no plans message
+        } else {
             container.style.display = 'none';
             noPlansEl.style.display = 'block';
-            refreshBtn.innerHTML = '<i class="fas fa-eye"></i> View Fasting Plans';
-            refreshBtn.setAttribute('data-action', 'view-plans');
-        } else {
-            // Hide everything
-            container.style.display = 'none';
-            noPlansEl.style.display = 'none';
-            refreshBtn.innerHTML = '<i class="fas fa-eye"></i> View Fasting Plans';
-            refreshBtn.setAttribute('data-action', 'view-plans');
         }
     }
 
@@ -170,22 +126,89 @@ class Fasting {
             console.log('Fasting tab not active, skipping render');
             return;
         }
-        
-        // Only update plans visibility, don't render plans directly
+
+        this.renderIntroBanner();
+        this.renderSubtabs();
         this.updatePlansVisibility();
         this.renderUserSpecificContent();
     }
 
+    // Three-way toggle for the Fasting tab: "Active Fast" (active + upcoming
+    // fasts) is shown by default, with "Fasting Plan" and "Fasting History"
+    // as alternate views so the tab isn't overwhelming on first load.
+    switchFastingSubtab(subtab) {
+        this.activeSubtab = subtab;
+        this.renderSubtabs();
+    }
+
+    renderSubtabs() {
+        document.querySelectorAll('.fasting-subtab-panel').forEach(panel => {
+            panel.style.display = panel.id === `fastingSubtab-${this.activeSubtab}` ? '' : 'none';
+        });
+        document.querySelectorAll('[data-fasting-subtab]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.fastingSubtab === this.activeSubtab);
+        });
+    }
+
+    // Shown only to users who have never started a fast, so they know what
+    // to do on this tab.
+    renderIntroBanner() {
+        const messages = document.getElementById('fastingMessages');
+        if (!messages) return;
+
+        const existing = document.getElementById('fastingIntroBanner');
+        if (existing) existing.remove();
+
+        if (!this.isAuthenticated || this.userFasts.length > 0) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'fastingIntroBanner';
+        banner.className = 'alert alert-info fasting-intro';
+        banner.innerHTML = `
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>Ready to begin?</strong> Open the <strong>Fasting Plan</strong> tab, pick a plan, and click
+                <strong>Start This Fast</strong>. Starting it now will show it here under
+                <strong>Active Fasts</strong>; scheduling it for later will show it under
+                <strong>Upcoming Fasts</strong>.
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" onclick="fastingApp.showFastingPlans()">
+                        <i class="fas fa-list-alt"></i> Browse Fasting Plans
+                    </button>
+                </div>
+            </div>
+        `;
+        messages.appendChild(banner);
+    }
+
     renderFastingPlans() {
-		if (!this.shouldRender() || !this.plansVisible) return;
-		
+		if (!this.shouldRender()) return;
+
 		const container = document.getElementById('fastingPlansContainer');
 		if (!container) return;
+
+		const query = this.planSearchQuery;
+		const filteredPlans = query
+			? this.plans.filter(plan =>
+				(plan.name && plan.name.toLowerCase().includes(query)) ||
+				(plan.description && plan.description.toLowerCase().includes(query)))
+			: this.plans;
+
+		if (filteredPlans.length === 0) {
+			container.innerHTML = `
+				<div class="text-center py-5">
+					<i class="fas fa-search fa-2x text-muted mb-3"></i>
+					<h5>No Plans Match Your Search</h5>
+					<p class="text-muted">Try a different search term.</p>
+				</div>
+			`;
+			return;
+		}
 
 		// Use CSS Grid instead of Bootstrap columns
 		container.innerHTML = `
 			<div class="fasting-plans-grid">
-				${this.plans.map(plan => `
+				${filteredPlans.map(plan => `
 					<div class="fasting-plan-item">
 						<div class="card h-100 fasting-plan-card shadow-sm">
 							<div class="card-header bg-light">
@@ -239,12 +262,6 @@ class Fasting {
 		this.bindStartFastButtons();
 	}
 
-	// Add toggle method to show/hide fasting plans
-	toggleFastingPlans() {
-		this.plansVisible = !this.plansVisible;
-        this.updatePlansVisibility();
-	}
-	
 	renderUserSpecificContent() {
         this.renderActiveFasts();
         this.renderUpcomingFasts();
@@ -352,15 +369,17 @@ class Fasting {
                         </div>
                         <div class="card-footer">
                             <div class="btn-group w-100">
-                                <button class="btn btn-success btn-sm" 
-                                        onclick="fastingApp.endFast(${fast.id})">
-                                    <i class="bi bi-check-circle"></i> End
+                                <button class="btn btn-success btn-sm"
+                                        onclick="fastingApp.endFast(${fast.id})"
+                                        title="Mark this fast as complete now, before its scheduled end time">
+                                    <i class="bi bi-check-circle"></i> Complete Now
                                 </button>
-                                <button class="btn btn-outline-danger btn-sm" 
-                                        onclick="fastingApp.cancelFast(${fast.id})">
+                                <button class="btn btn-outline-danger btn-sm"
+                                        onclick="fastingApp.cancelFast(${fast.id})"
+                                        title="Cancel this fast - it will not count as completed">
                                     <i class="bi bi-x-circle"></i> Cancel
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm" 
+                                <button class="btn btn-outline-primary btn-sm"
                                         onclick="fastingApp.viewFastDetails(${fast.id})">
                                     <i class="bi bi-eye"></i> Details
                                 </button>
@@ -432,17 +451,23 @@ class Fasting {
             section.style.display = 'none';
             return;
         }
-        
+
         section.style.display = 'block';
 
-        const completedFasts = this.userFasts.filter(fast => 
-            fast.status === 'completed' || fast.status === 'cancelled'
-        );
+        const completedFasts = this.userFasts
+            .filter(fast => fast.status === 'completed' || fast.status === 'cancelled')
+            .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
 
         if (completedFasts.length === 0) {
             container.innerHTML = '';
             return;
         }
+
+        const totalPages = Math.max(1, Math.ceil(completedFasts.length / this.historyPageSize));
+        this.historyPage = Math.min(Math.max(this.historyPage, 1), totalPages);
+
+        const startIndex = (this.historyPage - 1) * this.historyPageSize;
+        const pageFasts = completedFasts.slice(startIndex, startIndex + this.historyPageSize);
 
         container.innerHTML = `
             <div class="col-12 mt-4">
@@ -452,6 +477,8 @@ class Fasting {
                         <thead>
                             <tr>
                                 <th>Fast</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
                                 <th>Duration</th>
                                 <th>Status</th>
                                 <th>Progress</th>
@@ -459,7 +486,7 @@ class Fasting {
                             </tr>
                         </thead>
                         <tbody>
-                            ${completedFasts.map(fast => {
+                            ${pageFasts.map(fast => {
                                 const plan = this.plans.find(p => p.id == fast.plan_id) || {};
                                 const start = new Date(fast.start_date);
                                 const end = new Date(fast.end_date);
@@ -468,6 +495,8 @@ class Fasting {
                                 return `
                                     <tr>
                                         <td>${plan.name || 'Custom Fast'}</td>
+                                        <td>${start.toLocaleDateString()}</td>
+                                        <td>${end.toLocaleDateString()}</td>
                                         <td>${duration} days</td>
                                         <td>
                                             <span class="badge bg-${fast.status === 'completed' ? 'success' : 'secondary'}">
@@ -476,7 +505,7 @@ class Fasting {
                                         </td>
                                         <td>${fast.progress_percent || 0}%</td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary" 
+                                            <button class="btn btn-sm btn-outline-primary"
                                                     onclick="fastingApp.viewFastDetails(${fast.id})">
                                                 Details
                                             </button>
@@ -487,13 +516,27 @@ class Fasting {
                         </tbody>
                     </table>
                 </div>
+                ${totalPages > 1 ? `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="fastingApp.changeHistoryPage(-1)"
+                                ${this.historyPage <= 1 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span class="text-muted">Page ${this.historyPage} of ${totalPages}</span>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="fastingApp.changeHistoryPage(1)"
+                                ${this.historyPage >= totalPages ? 'disabled' : ''}>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
 
-    renderUserSpecificContent() {
-        this.renderActiveFasts();
-        this.renderUpcomingFasts();
+    changeHistoryPage(delta) {
+        this.historyPage += delta;
         this.renderFastHistory();
     }
 
@@ -639,10 +682,12 @@ class Fasting {
 	}
 
     getDefaultStartTime() {
+        // datetime-local inputs expect local time with no timezone info, but
+        // toISOString() always returns UTC - converting first keeps the
+        // default in sync with the user's actual local "now".
         const now = new Date();
-        now.setHours(now.getHours() + 1);
-        now.setMinutes(0);
-        return now.toISOString().slice(0, 16);
+        const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        return localNow.toISOString().slice(0, 16);
     }
 
     async startFast(modal) {
@@ -654,15 +699,18 @@ class Fasting {
 		
 		const formData = new FormData(form);
 		const startDate = formData.get('start_date');
-		
-		// Validate start date is in the future
+
+		// Allow starting "now" - datetime-local inputs are only precise to
+		// the minute, so the selected time can be a few seconds behind the
+		// clock by the time the form is submitted. Only reject dates that
+		// are clearly in the past.
 		const selectedDate = new Date(startDate);
 		const now = new Date();
-		if (selectedDate <= now) {
-			this.showMessage('Please select a future start date and time', 'error');
+		if (selectedDate.getTime() < now.getTime() - 60000) {
+			this.showMessage('Please select a start date and time that is not in the past', 'error');
 			return;
 		}
-		
+
 		const fastData = {
 			plan_id: formData.get('plan_id'),
 			start_date: startDate,
@@ -681,12 +729,18 @@ class Fasting {
 			
 			if (response.success) {
 				modal.hide();
-				
+
 				await this.loadUserFasts();
 				this.categorizeFasts();
 				this.renderUserSpecificContent();
-				
-				this.showMessage('Fast started successfully!', 'success');
+
+				const isUpcoming = this.upcomingFasts.some(f => f.id == response.fast_id);
+				if (isUpcoming) {
+					this.showMessage('Fast scheduled! You can find it under Upcoming Fasts.', 'success');
+				} else {
+					this.showMessage('Fast started! You can track it under Active Fasts.', 'success');
+				}
+				this.switchFastingSubtab('active');
 			} else {
 				this.showMessage('Error: ' + response.message, 'error');
 			}
@@ -703,16 +757,16 @@ class Fasting {
 	}
 
     async endFast(fastId) {
-        if (!confirm('Are you sure you want to end this fast?')) return;
+        if (!confirm('Mark this fast as complete now? It will be recorded as 100% complete even though its scheduled end time has not been reached yet.')) return;
 
         try {
             const response = await AuthHelper.apiCall('fasting/end.php', 'POST', { fast_id: fastId });
-            
+
             if (response.success) {
                 await this.loadUserFasts();
                 this.categorizeFasts();
                 this.renderUserSpecificContent();
-                this.showMessage('Fast completed successfully!', 'success');
+                this.showMessage('Fast marked as complete!', 'success');
             } else {
                 this.showMessage('Error: ' + response.message, 'error');
             }
@@ -723,7 +777,7 @@ class Fasting {
     }
 
     async cancelFast(fastId) {
-        if (!confirm('Are you sure you want to cancel this fast?')) return;
+        if (!confirm('Cancel this fast? It will not be counted as completed in your stats or history.')) return;
 
         try {
             const response = await AuthHelper.apiCall('fasting/cancel.php', 'POST', { fast_id: fastId });
@@ -858,8 +912,9 @@ class Fasting {
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             ${fast.status === 'active' ? `
-                                <button class="btn btn-success" onclick="fastingApp.endFast(${fast.id})">
-                                    End Fast
+                                <button class="btn btn-success" onclick="fastingApp.endFast(${fast.id})"
+                                        title="Mark this fast as complete now, before its scheduled end time">
+                                    Complete Now
                                 </button>
                             ` : ''}
                         </div>
@@ -878,15 +933,25 @@ class Fasting {
     }
 
     bindEvents() {
-		// Refresh plans button
-        const refreshBtn = document.getElementById('refreshPlansBtn');
-		if (refreshBtn) {
-			refreshBtn.addEventListener('click', () => {
-				this.toggleFastingPlans();
-			});
-		}
-		
-        // Add any additional event bindings here
+        // Fasting subtab toggle buttons
+        document.querySelectorAll('[data-fasting-subtab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchFastingSubtab(btn.dataset.fastingSubtab);
+            });
+        });
+
+        // Fasting plan search
+        const searchInput = document.getElementById('fastingPlanSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.filterFastingPlans(e.target.value);
+            });
+        }
+    }
+
+    filterFastingPlans(query) {
+        this.planSearchQuery = query.trim().toLowerCase();
+        this.renderFastingPlans();
     }
 
     startTimers() {
@@ -946,7 +1011,7 @@ class Fasting {
     }
 
     showFastingPlans() {
-        window.app.switchTab('fasting');
+        this.switchFastingSubtab('plans');
     }
 
     cleanup() {

@@ -36,29 +36,8 @@ try {
     $db = Database::getInstance()->getConnection();
 
     // Auto-complete fasts whose end date has already passed but are still
-    // marked active, so stats below reflect reality. Compared using PHP's
-    // clock (consistent with the rest of the app's date checks).
-    $sql = "SELECT id, end_date FROM user_fasts WHERE user_id = ? AND status = 'active'";
-    $stmt = $db->prepare($sql);
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $expiredFastIds = [];
-    while ($row = $result->fetch_assoc()) {
-        if (strtotime($row['end_date']) < time()) {
-            $expiredFastIds[] = (int)$row['id'];
-        }
-    }
-    $stmt->close();
-
-    if (!empty($expiredFastIds)) {
-        $placeholders = implode(',', array_fill(0, count($expiredFastIds), '?'));
-        $types = str_repeat('i', count($expiredFastIds));
-        $stmt = $db->prepare("UPDATE user_fasts SET status = 'completed', progress_percent = 100 WHERE id IN ($placeholders)");
-        $stmt->bind_param($types, ...$expiredFastIds);
-        $stmt->execute();
-        $stmt->close();
-    }
+    // marked active, so stats below reflect reality.
+    autoCompleteExpiredFasts($db, $user_id);
 
     // Build WHERE conditions for filters
     $whereConditions = ["uf.user_id = ?"];

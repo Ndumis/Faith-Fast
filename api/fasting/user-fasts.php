@@ -14,9 +14,14 @@ try {
     }
     
     $user_id = $authUser['user_id'];
-    
+
     $db = Database::getInstance()->getConnection();
-    
+
+    // Auto-complete fasts whose end date has already passed but are still
+    // marked active, so they show up correctly below instead of being
+    // stuck (and effectively hidden) as a stale "active" fast.
+    autoCompleteExpiredFasts($db, $user_id);
+
     $sql = "SELECT uf.*, fp.name as plan_name, fp.duration_days, fp.description as plan_description
             FROM user_fasts uf 
             LEFT JOIN fasting_plans fp ON uf.plan_id = fp.id 
