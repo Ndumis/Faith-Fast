@@ -7,6 +7,7 @@ class Chat {
         this.currentChatUser = null;
         this.pollingInterval = null;
         this.unreadMessages = 0;
+        this.mentionCandidates = [];
     }
 
     async init() {
@@ -30,6 +31,8 @@ class Chat {
             console.error('❌ Chat initialization failed:', error);
             this.loadDemoData();
         }
+
+        adjustChatLayout();
     }
 
     isChatPage() {
@@ -39,38 +42,32 @@ class Chat {
 
     bindEvents() {
 		console.log('Binding chat events...');
-		
-		const sendButton = document.getElementById('sendMessage');
-		const messageInput = document.getElementById('messageInput');
-		
-		if (sendButton) {
-			sendButton.addEventListener('click', () => this.sendMessage());
-		}
-		
-		if (messageInput) {
-			messageInput.addEventListener('keypress', (e) => {
-				if (e.key === 'Enter' && !e.shiftKey) {
-					e.preventDefault();
-					this.sendMessage();
+
+		// Note: #sendMessage click and #messageInput Enter-to-send are bound
+		// once in initializeChatInput() (which clones the elements to avoid
+		// duplicate listeners). Binding them again here would send every
+		// message twice.
+
+		// Group selection - now entire group item is clickable
+		// Bound once globally to avoid piling up duplicate listeners across
+		// repeated chat tab visits/re-inits.
+		if (!window._chatDocClickBound) {
+			window._chatDocClickBound = true;
+			document.addEventListener('click', (e) => {
+				const groupItem = e.target.closest('.group-item');
+				if (groupItem) {
+					const groupId = groupItem.getAttribute('data-group-id');
+					if (window.chatInstance) window.chatInstance.selectGroup(groupId);
+				}
+
+				// User selection for direct chat
+				const userItem = e.target.closest('.user-item');
+				if (userItem) {
+					const userId = userItem.getAttribute('data-user-id');
+					if (window.chatInstance) window.chatInstance.selectUser(userId);
 				}
 			});
 		}
-
-		// Group selection - now entire group item is clickable
-		document.addEventListener('click', (e) => {
-			const groupItem = e.target.closest('.group-item');
-			if (groupItem) {
-				const groupId = groupItem.getAttribute('data-group-id');
-				this.selectGroup(groupId);
-			}
-			
-			// User selection for direct chat
-			const userItem = e.target.closest('.user-item');
-			if (userItem) {
-				const userId = userItem.getAttribute('data-user-id');
-				this.selectUser(userId);
-			}
-		});
 
 		// Search functionality
 		const searchInput = document.getElementById('chatSearch');
@@ -304,14 +301,18 @@ class Chat {
 			const senderName = message.sender_name || message.user_name || 'Unknown';
 			const messageTime = message.created_at ? this.formatTime(message.created_at) : 'Just now';
 			const messageText = message.message || message.text || '';
-			
+			const isSticker = this.isStickerMessage(messageText);
+			const bodyHtml = isSticker
+				? this.escapeHtml(messageText)
+				: this.formatMentions(this.escapeHtml(messageText));
+
 			return `
 				<div class="message ${isOwnMessage ? 'own-message' : 'other-message'}" data-message-id="${message.id || ''}">
 					<div class="message-avatar">
 						<i class="fas fa-user"></i>
 					</div>
 					<div class="message-content">
-						<div class="message-text">${this.escapeHtml(messageText)}</div>
+						<div class="message-text${isSticker ? ' sticker-message' : ''}">${bodyHtml}</div>
 						<span class="message-time">${messageTime}</span>
 					</div>
 				</div>
@@ -360,14 +361,31 @@ class Chat {
         this.currentGroup = groupId;
         this.currentChatUser = null;
         this.loadMessages(groupId);
+        this.loadGroupMembers(groupId);
         this.updateUI();
     }
-	
+
 	selectUser(userId) {
         this.currentChatUser = userId;
         this.currentGroup = null;
         this.loadMessages(null, userId);
+        const user = this.users.find(u => u.id == userId);
+        this.mentionCandidates = user ? [user] : [];
         this.updateUI();
+    }
+
+    // Load the members of a group so @mentions can be scoped to people
+    // actually in this conversation
+    async loadGroupMembers(groupId) {
+        try {
+            const response = await this.apiCall(`chat/group-members.php?group_id=${groupId}`);
+            const members = response.success ? (response.members || []) : [];
+            const currentUserId = this.getCurrentUserId();
+            this.mentionCandidates = members.filter(m => m.id != currentUserId);
+        } catch (error) {
+            console.error('Error loading group members:', error);
+            this.mentionCandidates = [];
+        }
     }
 	
 	updateUI() {
@@ -461,6 +479,115 @@ class Chat {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // A message consisting of just 1-6 emoji is shown as a big "sticker"
+    isStickerMessage(text) {
+        const trimmed = text.trim();
+        if (!trimmed) return false;
+        const emojiRegex = /^(?:[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️‍]){1,6}$/u;
+        return emojiRegex.test(trimmed);
+    }
+
+    // Highlight @mentions of known users. Expects already-escaped text.
+    formatMentions(escapedText) {
+        if (!this.users || this.users.length === 0) return escapedText;
+        const names = this.users
+            .map(u => u.name)
+            .filter(Boolean)
+            .sort((a, b) => b.length - a.length)
+            .map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        if (names.length === 0) return escapedText;
+        const pattern = new RegExp('@(' + names.join('|') + ')\\b', 'g');
+        return escapedText.replace(pattern, '<span class="mention">@$1</span>');
+    }
+
+    // Wire up @mention autocomplete on the message textarea
+    bindMentionAutocomplete(textarea) {
+        const dropdown = document.getElementById('mentionDropdown');
+        if (!textarea || !dropdown) return;
+
+        textarea.addEventListener('input', () => {
+            this.updateMentionDropdown(textarea, dropdown);
+        });
+
+        textarea.addEventListener('keydown', (e) => {
+            if (!dropdown.classList.contains('active')) return;
+            const items = dropdown.querySelectorAll('.mention-item');
+            if (!items.length) return;
+
+            let highlighted = dropdown.querySelector('.mention-item.highlighted');
+            let index = highlighted ? Array.from(items).indexOf(highlighted) : -1;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                index = (index + 1) % items.length;
+                items.forEach(i => i.classList.remove('highlighted'));
+                items[index].classList.add('highlighted');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                index = (index - 1 + items.length) % items.length;
+                items.forEach(i => i.classList.remove('highlighted'));
+                items[index].classList.add('highlighted');
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                const target = highlighted || items[0];
+                this.selectMention(textarea, dropdown, target.dataset.name);
+            } else if (e.key === 'Escape') {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+
+    // Find the @-prefixed text fragment immediately before the cursor, if any
+    getMentionQuery(textarea) {
+        const cursor = textarea.selectionStart;
+        const text = textarea.value.slice(0, cursor);
+        const match = text.match(/@([\w]*)$/);
+        return match ? match[1] : null;
+    }
+
+    updateMentionDropdown(textarea, dropdown) {
+        const query = this.getMentionQuery(textarea);
+        if (query === null) {
+            dropdown.classList.remove('active');
+            return;
+        }
+
+        const matches = this.mentionCandidates.filter(u =>
+            u.name && u.name.toLowerCase().startsWith(query.toLowerCase())
+        ).slice(0, 6);
+
+        if (matches.length === 0) {
+            dropdown.classList.remove('active');
+            return;
+        }
+
+        dropdown.innerHTML = matches.map(u => `
+            <div class="mention-item" data-name="${this.escapeHtml(u.name)}">
+                <span class="mention-item-avatar"><i class="fas fa-user"></i></span>
+                <span>${this.escapeHtml(u.name)}</span>
+            </div>
+        `).join('');
+        dropdown.querySelector('.mention-item').classList.add('highlighted');
+        dropdown.classList.add('active');
+    }
+
+    selectMention(textarea, dropdown, name) {
+        const cursor = textarea.selectionStart;
+        const text = textarea.value;
+        const before = text.slice(0, cursor);
+        const after = text.slice(cursor);
+        const match = before.match(/@([\w]*)$/);
+        if (!match) return;
+
+        const start = before.length - match[0].length;
+        const mentionText = `@${name} `;
+        textarea.value = before.slice(0, start) + mentionText + after;
+        const newPos = start + mentionText.length;
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+        dropdown.classList.remove('active');
+        textarea.focus();
     }
 
     // Add this method to handle mobile toggle binding
@@ -608,11 +735,148 @@ class Chat {
 	
 }
 
+// Fit the chat container to the visible viewport on mobile/tablet so the
+// message input never ends up below the fold (header height varies by device).
+function adjustChatLayout() {
+  const container = document.querySelector('.chat-container');
+  if (!container) return;
+
+  if (window.innerWidth <= 768) {
+    const top = container.getBoundingClientRect().top;
+    const available = window.innerHeight - top - 16;
+    container.style.height = Math.max(available, 380) + 'px';
+  } else {
+    container.style.height = '';
+  }
+
+  const messages = document.getElementById('chatMessages');
+  if (messages) {
+    messages.scrollTop = messages.scrollHeight;
+  }
+}
+
+const EMOJI_LIST = [
+  '😀','😃','😄','😁','😆','😅','😂','🙂','🙃','😉','😊','😇',
+  '🥰','😍','😘','😗','😋','😛','🤗','🤔','😐','😴','😪','😢',
+  '😭','😡','😠','🤯','😱','😨','😰','😥','😓','🤝','👍','👎',
+  '👏','🙌','🙏','💪','✌️','🤞','👋','❤️','🧡','💛','💚','💙',
+  '💜','🖤','🤍','💖','💕','✨','🔥','🎉','🎊','🌟','⭐','☀️',
+  '🌙','⛅','🌈','🍞','🍎','☕','📖','✝️','🕊️','⛪'
+];
+
+const STICKER_LIST = [
+  '🙏','✝️','📖','🕊️','🔥','😇','✨','⭐','💪','❤️',
+  '🎉','👏','🙌','☀️','🌙','⛪'
+];
+
+function populateEmojiPicker() {
+  const emojiGrid = document.querySelector('#emojiPicker .emoji-grid[data-panel="emoji"]');
+  const stickerGrid = document.querySelector('#emojiPicker .emoji-grid[data-panel="stickers"]');
+  if (emojiGrid && !emojiGrid.children.length) {
+    emojiGrid.innerHTML = EMOJI_LIST.map(e => `<button type="button" data-emoji="${e}">${e}</button>`).join('');
+  }
+  if (stickerGrid && !stickerGrid.children.length) {
+    stickerGrid.innerHTML = STICKER_LIST.map(e => `<button type="button" data-emoji="${e}">${e}</button>`).join('');
+  }
+}
+
+function insertAtCursor(textarea, text) {
+  const start = textarea.selectionStart ?? textarea.value.length;
+  const end = textarea.selectionEnd ?? textarea.value.length;
+  const value = textarea.value;
+  textarea.value = value.slice(0, start) + text + value.slice(end);
+  const newPos = start + text.length;
+  textarea.selectionStart = textarea.selectionEnd = newPos;
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Wire up the emoji/sticker picker toggle - bound once globally since
+// #emojiToggle and #emojiPicker are not re-cloned on every tab visit
+function bindEmojiPicker() {
+  if (window._emojiPickerBound) return;
+  window._emojiPickerBound = true;
+
+  const toggle = document.getElementById('emojiToggle');
+  const picker = document.getElementById('emojiPicker');
+  if (!toggle || !picker) return;
+
+  populateEmojiPicker();
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    picker.classList.toggle('active');
+  });
+
+  picker.querySelectorAll('.emoji-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      picker.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
+      picker.querySelectorAll('.emoji-grid').forEach(g => g.classList.remove('active'));
+      tab.classList.add('active');
+      picker.querySelector(`.emoji-grid[data-panel="${tab.dataset.panel}"]`).classList.add('active');
+    });
+  });
+
+  picker.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-emoji]');
+    if (!btn) return;
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) insertAtCursor(messageInput, btn.dataset.emoji);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!picker.classList.contains('active')) return;
+    if (!picker.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+      picker.classList.remove('active');
+    }
+  });
+}
+
+// Wire up the mention dropdown's click-to-select and click-outside-to-close
+// behavior. Bound once globally; fetches #messageInput fresh on each click
+// since the textarea gets re-cloned every time the chat tab is opened.
+function bindMentionDropdown() {
+  if (window._mentionDropdownBound) return;
+  window._mentionDropdownBound = true;
+
+  const dropdown = document.getElementById('mentionDropdown');
+  if (!dropdown) return;
+
+  dropdown.addEventListener('click', (e) => {
+    const item = e.target.closest('.mention-item');
+    if (!item) return;
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput && window.chatInstance) {
+      window.chatInstance.selectMention(messageInput, dropdown, item.dataset.name);
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.classList.contains('active')) return;
+    const messageInput = document.getElementById('messageInput');
+    if (!dropdown.contains(e.target) && e.target !== messageInput) {
+      dropdown.classList.remove('active');
+    }
+  });
+}
+
 // Auto-resize textarea and ensure button visibility
 function initializeChatInput() {
   const messageInput = document.getElementById('messageInput');
   const sendButton = document.getElementById('sendMessage');
-  
+
+  if (!window._chatLayoutBound) {
+    window.addEventListener('resize', adjustChatLayout);
+    window.addEventListener('orientationchange', () => setTimeout(adjustChatLayout, 250));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', adjustChatLayout);
+    }
+    window._chatLayoutBound = true;
+  }
+  adjustChatLayout();
+  bindEmojiPicker();
+  bindMentionDropdown();
+
   if (messageInput && sendButton) {
     // Remove any existing event listeners to prevent duplicates
     const newMessageInput = messageInput.cloneNode(true);
@@ -637,7 +901,11 @@ function initializeChatInput() {
     });
     
     // Handle Enter key (send on Enter, new line on Shift+Enter)
+    // Skip if the @mention dropdown is open - it handles Enter itself
     messageInputNew.addEventListener('keydown', function(e) {
+      const mentionDropdown = document.getElementById('mentionDropdown');
+      if (mentionDropdown && mentionDropdown.classList.contains('active')) return;
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         // Call the chat instance's sendMessage method
@@ -657,11 +925,21 @@ function initializeChatInput() {
     
     // Remove onclick from HTML to prevent duplicate binding
     sendButtonNew.removeAttribute('onclick');
-    
-    // Ensure button stays visible on focus
+
+    // @mention autocomplete
+    if (window.chatInstance) {
+      window.chatInstance.bindMentionAutocomplete(messageInputNew);
+    }
+
+    // Ensure button stays visible on focus, and re-fit layout once the
+    // on-screen keyboard finishes opening/closing
     messageInputNew.addEventListener('focus', function() {
       sendButtonNew.style.display = 'flex';
       sendButtonNew.style.visibility = 'visible';
+      setTimeout(adjustChatLayout, 300);
+    });
+    messageInputNew.addEventListener('blur', function() {
+      setTimeout(adjustChatLayout, 300);
     });
   }
 }

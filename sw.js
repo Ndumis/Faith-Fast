@@ -1,6 +1,6 @@
-const CACHE_NAME = 'faith-fast-v1.1.0-universal';
-const STATIC_CACHE = 'static-v1-universal';
-const DYNAMIC_CACHE = 'dynamic-v1-universal';
+const CACHE_NAME = 'faith-fast-v1.2.0-universal';
+const STATIC_CACHE = 'static-v2-universal';
+const DYNAMIC_CACHE = 'dynamic-v2-universal';
 
 // URLs to cache - relative to this script's location, so the app can be
 // deployed at the domain root or in a subdirectory.
@@ -57,12 +57,22 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
     // Skip non-GET requests (both platforms)
     if (event.request.method !== 'GET') return;
-    
+
+    // Never cache API responses - chat messages, notifications, etc. are
+    // dynamic and must always come from the network. caches.match's
+    // ignoreSearch would otherwise return the same cached response for
+    // every "?group_id=..." / "?user_id=..." variant of an endpoint.
+    const requestUrl = new URL(event.request.url);
+    if (requestUrl.pathname.includes('/api/')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     // iOS-specific: handle Safari redirects (harmless on Android)
     if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') {
         return;
     }
-    
+
     event.respondWith(
         caches.match(event.request, {ignoreSearch: true}) // Works on both
             .then(response => {

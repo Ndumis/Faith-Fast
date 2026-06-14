@@ -293,7 +293,13 @@ class FaithFastApp {
                         break;
                     case 'chat':
                         if (typeof Chat !== 'undefined') {
-                            this.chat = new Chat();
+                            // Reuse the single global chat instance (also used by
+                            // js/chat.js for input/emoji/mention bindings) so chat
+                            // state like users and mentionCandidates stays in sync.
+                            if (!window.chatInstance) {
+                                window.chatInstance = new Chat();
+                            }
+                            this.chat = window.chatInstance;
                             this.chat.init().catch(error => {
                                 console.error('❌ Chat initialization failed:', error);
                             });
