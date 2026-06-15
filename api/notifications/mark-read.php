@@ -25,12 +25,18 @@ try {
     if (!empty($input['all'])) {
         $sql = "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0";
         $stmt = $db->prepare($sql);
+        if (!$stmt) {
+            throw new Exception('Failed to prepare SQL statement: ' . $db->error);
+        }
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
         $affected = $stmt->affected_rows;
     } elseif (isset($input['id'])) {
         $sql = "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?";
         $stmt = $db->prepare($sql);
+        if (!$stmt) {
+            throw new Exception('Failed to prepare SQL statement: ' . $db->error);
+        }
         $stmt->bind_param('ii', $input['id'], $user_id);
         $stmt->execute();
         $affected = $stmt->affected_rows;
