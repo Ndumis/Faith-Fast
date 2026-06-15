@@ -12,6 +12,54 @@ class FaithFastApp {
         this.initializeCurrentTab();
         this.initPWA();
         this.bindEvents();
+        this.setupNavScrollIndicators();
+        this.setupUserMenu();
+    }
+
+    setupUserMenu() {
+        const toggle = document.getElementById('userMenuToggle');
+        const dropdown = document.getElementById('userMenuDropdown');
+        if (!toggle || !dropdown) return;
+
+        const closeMenu = () => {
+            toggle.classList.remove('open');
+            dropdown.classList.remove('show');
+        };
+
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.toggle('show');
+            toggle.classList.toggle('open', isOpen);
+        });
+
+        dropdown.addEventListener('click', () => closeMenu());
+
+        document.addEventListener('click', (e) => {
+            if (!toggle.contains(e.target) && !dropdown.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMenu();
+        });
+    }
+
+    setupNavScrollIndicators() {
+        const navTabs = document.querySelector('.nav-tabs');
+        const fadeLeft = document.querySelector('.nav-fade-left');
+        const fadeRight = document.querySelector('.nav-fade-right');
+        if (!navTabs || !fadeLeft || !fadeRight) return;
+
+        const updateFades = () => {
+            const maxScroll = navTabs.scrollWidth - navTabs.clientWidth;
+            fadeLeft.classList.toggle('is-visible', navTabs.scrollLeft > 4);
+            fadeRight.classList.toggle('is-visible', navTabs.scrollLeft < maxScroll - 4);
+        };
+
+        navTabs.addEventListener('scroll', updateFades);
+        window.addEventListener('resize', updateFades);
+        updateFades();
     }
 
     checkAuthentication() {
@@ -144,9 +192,10 @@ class FaithFastApp {
             tab.classList.remove('active');
         });
         
-        const activeNavTab = document.querySelector(`[data-tab="${tabName}"]`);
+        const activeNavTab = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
         if (activeNavTab) {
             activeNavTab.classList.add('active');
+            activeNavTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
 
         // HIDE ALL TAB CONTENTS AGGRESSIVELY

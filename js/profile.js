@@ -1,7 +1,6 @@
 class Profile {
     constructor() {
         this.user = null;
-        this.init();
     }
 
     async init() {

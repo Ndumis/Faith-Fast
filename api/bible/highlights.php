@@ -24,14 +24,29 @@ try {
             $book_id = $_GET['book_id'] ?? null;
             $chapter = $_GET['chapter'] ?? null;
 
-            if (!$book_id || !$chapter) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'book_id and chapter are required']);
-                exit;
+            if ($book_id && $chapter) {
+                $stmt = $db->prepare("SELECT id, verse_number, start_offset, end_offset, color FROM bible_highlights WHERE user_id = ? AND book_id = ? AND chapter = ? ORDER BY verse_number, start_offset");
+                $stmt->bind_param('iii', $user_id, $book_id, $chapter);
+                $stmt->execute();
+                $highlights = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+                echo json_encode(['success' => true, 'highlights' => $highlights]);
+                break;
             }
 
-            $stmt = $db->prepare("SELECT verse_number, color FROM bible_highlights WHERE user_id = ? AND book_id = ? AND chapter = ?");
-            $stmt->bind_param('iii', $user_id, $book_id, $chapter);
+            // No book/chapter given - return every highlight the user has
+            // saved, with enough context (book name + verse text) to show as
+            // a "My Highlights" study summary.
+            $stmt = $db->prepare("
+                SELECT h.id, h.book_id, b.name AS book_name, h.chapter, h.verse_number,
+                       h.start_offset, h.end_offset, h.color, v.text AS verse_text, h.created_at
+                FROM bible_highlights h
+                JOIN bible_books b ON b.id = h.book_id
+                JOIN bible_verses v ON v.book_id = h.book_id AND v.chapter = h.chapter AND v.verse_number = h.verse_number
+                WHERE h.user_id = ?
+                ORDER BY h.created_at DESC
+            ");
+            $stmt->bind_param('i', $user_id);
             $stmt->execute();
             $highlights = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -44,11 +59,22 @@ try {
             $book_id = $input['book_id'] ?? null;
             $chapter = $input['chapter'] ?? null;
             $verse_number = $input['verse_number'] ?? null;
+            $start_offset = $input['start_offset'] ?? null;
+            $end_offset = $input['end_offset'] ?? null;
             $color = $input['color'] ?? null;
 
-            if (!$book_id || !$chapter || !$verse_number || !$color) {
+            if (!$book_id || !$chapter || !$verse_number || $start_offset === null || $end_offset === null || !$color) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'book_id, chapter, verse_number and color are required']);
+                echo json_encode(['success' => false, 'message' => 'book_id, chapter, verse_number, start_offset, end_offset and color are required']);
+                exit;
+            }
+
+            $start_offset = (int) $start_offset;
+            $end_offset = (int) $end_offset;
+
+            if ($start_offset < 0 || $end_offset <= $start_offset) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Invalid highlight range']);
                 exit;
             }
 
@@ -58,28 +84,38 @@ try {
                 exit;
             }
 
-            $stmt = $db->prepare("INSERT INTO bible_highlights (user_id, book_id, chapter, verse_number, color)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE color = VALUES(color)");
-            $stmt->bind_param('iiiis', $user_id, $book_id, $chapter, $verse_number, $color);
+            // Remove any existing highlights for this verse that overlap the
+            // new range - the new highlight takes precedence over the text
+            // it covers.
+            $stmt = $db->prepare("DELETE FROM bible_highlights WHERE user_id = ? AND book_id = ? AND chapter = ? AND verse_number = ? AND start_offset < ? AND end_offset > ?");
+            $stmt->bind_param('iiiiii', $user_id, $book_id, $chapter, $verse_number, $end_offset, $start_offset);
             $stmt->execute();
+            $stmt->close();
 
-            echo json_encode(['success' => true]);
+            $stmt = $db->prepare("INSERT INTO bible_highlights (user_id, book_id, chapter, verse_number, start_offset, end_offset, color) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('iiiiiis', $user_id, $book_id, $chapter, $verse_number, $start_offset, $end_offset, $color);
+            $stmt->execute();
+            $stmt->close();
+
+            $stmt = $db->prepare("SELECT id, verse_number, start_offset, end_offset, color FROM bible_highlights WHERE user_id = ? AND book_id = ? AND chapter = ? AND verse_number = ? ORDER BY start_offset");
+            $stmt->bind_param('iiii', $user_id, $book_id, $chapter, $verse_number);
+            $stmt->execute();
+            $highlights = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+            echo json_encode(['success' => true, 'highlights' => $highlights]);
             break;
 
         case 'DELETE':
-            $book_id = $_GET['book_id'] ?? null;
-            $chapter = $_GET['chapter'] ?? null;
-            $verse_number = $_GET['verse_number'] ?? null;
+            $id = $_GET['id'] ?? null;
 
-            if (!$book_id || !$chapter || !$verse_number) {
+            if (!$id) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'book_id, chapter and verse_number are required']);
+                echo json_encode(['success' => false, 'message' => 'id is required']);
                 exit;
             }
 
-            $stmt = $db->prepare("DELETE FROM bible_highlights WHERE user_id = ? AND book_id = ? AND chapter = ? AND verse_number = ?");
-            $stmt->bind_param('iiii', $user_id, $book_id, $chapter, $verse_number);
+            $stmt = $db->prepare("DELETE FROM bible_highlights WHERE id = ? AND user_id = ?");
+            $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
 
             echo json_encode(['success' => true]);

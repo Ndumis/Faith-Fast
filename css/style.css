@@ -57,6 +57,12 @@ body {
   backdrop-filter: blur(10px);
 }
 
+/* The shared .container clips overflow for its rounded corners, which
+   would hide the absolutely-positioned user menu dropdown. */
+.header .container {
+  overflow: visible;
+}
+
 .header-content {
   align-items: center;
   display: flex;
@@ -96,6 +102,7 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
+  position: relative;
 }
 
 .user-menu {
@@ -109,7 +116,8 @@ body {
   transition: var(--transition);
 }
 
-.user-menu:hover {
+.user-menu:hover,
+.user-menu.open {
   background: var(--light-gray);
 }
 
@@ -131,56 +139,69 @@ body {
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--primary);
-    margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 100%;
+    max-width: 120px;
 }
 
-.logout-btn {
-    align-items: center;
-    background: var(--error);
-    border-radius: 6px;
-    border: none;
-    color: var(--secondary);
-    cursor: pointer;
-    display: flex;
-    font-size: 0.9rem;
-    gap: 8px;
-    padding: 8px 12px;
-    transition: var(--transition);
-    margin-left: 10px;
+.user-menu-caret {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  transition: transform 0.2s ease;
 }
 
-.logout-btn:hover {
-    background: #c82333;
-    transform: translateY(-1px);
+.user-menu.open .user-menu-caret {
+  transform: rotate(180deg);
 }
 
-.user-menu {
-    align-items: center;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    gap: 12px;
-    padding: 8px 12px;
-    position: relative;
-    transition: var(--transition);
+/* Hide the username on small screens so the header has more breathing
+   room - it's still shown inside the dropdown menu. */
+@media (max-width: 480px) {
+  .user-name {
+    display: none;
+  }
 }
 
-.user-menu:hover {
-    background: var(--light-gray);
+.user-menu-dropdown {
+  background: var(--secondary);
+  border: 1px solid var(--medium-gray);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  display: none;
+  min-width: 160px;
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 1100;
 }
 
-/* Show username on larger screens */
-@media (min-width: 769px) {
-    .user-name {
-        display: block;
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: var(--primary);
-    }
+.user-menu-dropdown.show {
+  display: block;
+}
+
+.user-menu-item {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.9rem;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  transition: var(--transition);
+  width: 100%;
+}
+
+.user-menu-item:hover {
+  background: var(--light-gray);
+}
+
+.user-menu-item-danger {
+  color: var(--error);
 }
 
 /* ===== NAVIGATION STYLES ===== */
@@ -190,6 +211,10 @@ body {
   position: sticky;
   top: 70px;
   z-index: 999; /* Lower than header and dropdown */
+}
+
+.main-nav .container {
+  position: relative;
 }
 
 .nav-tabs {
@@ -202,6 +227,39 @@ body {
 
 .nav-tabs::-webkit-scrollbar {
   display: none;
+}
+
+/* Fade hints that appear when the tab bar has more tabs to scroll to,
+   so swipeable navigation isn't hidden on small screens. */
+.nav-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}
+
+.nav-fade-left {
+  left: 20px;
+  justify-content: flex-start;
+  background: linear-gradient(to right, var(--secondary) 50%, transparent);
+}
+
+.nav-fade-right {
+  right: 20px;
+  justify-content: flex-end;
+  background: linear-gradient(to left, var(--secondary) 50%, transparent);
+}
+
+.nav-fade.is-visible {
+  opacity: 1;
 }
 
 .nav-tab {
@@ -490,6 +548,7 @@ body {
   border-radius: 8px;
   padding: 1rem;
   text-align: center;
+  min-width: 0;
 }
 
 .welcome-stat i {
@@ -526,6 +585,11 @@ body {
   padding: 1.5rem;
   transition: var(--transition);
   border-left: 4px solid transparent;
+  min-width: 0;
+}
+
+.stat-info {
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -604,6 +668,34 @@ body {
 
 .stat-info small.negative {
   color: var(--error);
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-filter {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .date-filter .form-select {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: 0;
+  }
+
+  .date-filter #fastTypeFilter {
+    flex: 1 1 100%;
+  }
 }
 
 /* Quick Actions */
@@ -2407,14 +2499,10 @@ body {
 .verse-item {
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
 }
 
-.verse-item:hover,
-.verse-item:focus {
-  background: var(--accent-light);
-  outline: none;
+.verse-text {
+  user-select: text;
 }
 
 .verse-number {
@@ -2437,28 +2525,31 @@ body {
   margin-right: 0.3rem;
 }
 
-/* Highlighted verse backgrounds - soft tones chosen to keep the
-   verse text (var(--primary)) easily readable on top. */
-.verse-item.highlight-yellow {
+/* Highlighted text spans - soft tones chosen to keep the verse text
+   (var(--primary)) easily readable on top. */
+.text-highlight {
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.05em 0;
+}
+
+.text-highlight.highlight-yellow {
   background: #fff3b0;
 }
 
-.verse-item.highlight-green {
+.text-highlight.highlight-green {
   background: #c8e6c9;
 }
 
-.verse-item.highlight-blue {
+.text-highlight.highlight-blue {
   background: #bbdefb;
 }
 
-.verse-item.highlight-pink {
+.text-highlight.highlight-pink {
   background: #f8c9dc;
 }
 
-.verse-item.highlight-yellow:hover,
-.verse-item.highlight-green:hover,
-.verse-item.highlight-blue:hover,
-.verse-item.highlight-pink:hover {
+.text-highlight:hover {
   filter: brightness(0.97);
 }
 
@@ -2533,6 +2624,63 @@ body {
   font-size: 0.85rem;
 }
 
+/* ===== BIBLE: READ / MY HIGHLIGHTS VIEW SWITCH ===== */
+.bible-view-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* A highlight in the "My Highlights" list flashes briefly when jumped to
+   from "Read in context", so the reader can find it among the verses. */
+.verse-flash {
+  animation: verse-flash-fade 2s ease-out;
+}
+
+@keyframes verse-flash-fade {
+  from {
+    background: var(--accent-light);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* ===== BIBLE: MY HIGHLIGHTS LIST ===== */
+.highlight-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.highlight-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.highlight-reference {
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.highlight-snippet {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.7;
+}
+
+.highlight-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .bible-content {
     font-size: 1.05rem;
@@ -2563,5 +2711,18 @@ body {
     width: 36px;
     height: 36px;
     min-width: 36px;
+  }
+
+  .highlight-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .highlight-card-actions {
+    flex-direction: row;
+  }
+
+  .highlight-card-actions .btn {
+    flex: 1;
   }
 }
