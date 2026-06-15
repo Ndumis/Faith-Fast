@@ -6,6 +6,10 @@ class Bible {
         this.selectedChapter = null;
         this.verses = [];
         this.currentTestament = 'all';
+        this.currentBookId = null;
+        this.currentChapter = null;
+        this.highlights = {};
+        this.highlightColors = ['yellow', 'green', 'blue', 'pink'];
         this.init();
     }
 
@@ -91,6 +95,18 @@ class Bible {
                 }
             });
         }
+
+        // Close any open highlight menu when clicking outside it
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.verse-item') && !e.target.closest('.highlight-menu')) {
+                this.closeHighlightMenu();
+            }
+        });
+    }
+
+    closeHighlightMenu() {
+        const menu = document.querySelector('.highlight-menu');
+        if (menu) menu.remove();
     }
 
     populateTestamentFilter() {
@@ -174,9 +190,12 @@ class Bible {
             }
             
             const data = await response.json();
-            
+
             if (data.success && data.verses) {
                 this.verses = data.verses;
+                this.currentBookId = bookId;
+                this.currentChapter = chapter;
+                await this.loadHighlights(bookId, chapter);
                 this.displayChapter();
             } else {
                 throw new Error(data.message || 'Failed to load chapter');
@@ -216,15 +235,18 @@ class Bible {
                         </button>
                     </div>
                 </div>
+                <p class="text-muted highlight-hint mb-0"><i class="fas fa-highlighter"></i> Tap a verse to highlight it</p>
                 <hr>
             </div>
             <div class="verses-container">
         `;
 
         this.verses.forEach(verse => {
+            const color = this.highlights[verse.verse_number];
+            const highlightClass = color ? ` highlight-${color}` : '';
             html += `
-                <div class="verse-item mb-3">
-                    <sup class="verse-number badge bg-light text-dark">${verse.verse_number}</sup>
+                <div class="verse-item${highlightClass}" data-verse-number="${verse.verse_number}" tabindex="0" role="button" aria-label="Verse ${verse.verse_number}, tap to highlight" onclick="bible.toggleHighlightMenu(this, ${verse.verse_number})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); bible.toggleHighlightMenu(this, ${verse.verse_number});}">
+                    <sup class="verse-number">${verse.verse_number}</sup>
                     <span class="verse-text">${verse.text}</span>
                 </div>
             `;
@@ -292,17 +314,26 @@ class Bible {
             return;
         }
 
+        // Cap how many verses we render - hundreds of results in one long
+        // page isn't "easy to navigate". Ask for a more specific search instead.
+        const resultsLimit = 50;
+        const shownVerses = verses.slice(0, resultsLimit);
+        const moreNote = verses.length > resultsLimit
+            ? `<p class="text-muted">Showing the first ${resultsLimit} of ${verses.length} matches. Try a more specific word or phrase to narrow this down.</p>`
+            : '';
+
         let html = `
             <div class="search-results-header mb-4">
                 <h3>Search Results for "${query}"</h3>
                 <p class="text-muted">Found ${verses.length} verse(s)</p>
+                ${moreNote}
                 <hr>
             </div>
             <div class="search-results">
         `;
 
         // Group verses by book and chapter
-        const groupedVerses = this.groupVersesByBookChapter(verses);
+        const groupedVerses = this.groupVersesByBookChapter(shownVerses);
 
         Object.keys(groupedVerses).forEach(groupKey => {
             const [bookName, chapter] = groupKey.split('-');
@@ -353,11 +384,9 @@ class Bible {
         if (bibleContent) {
             bibleContent.innerHTML = `
                 <div class="welcome-message text-center py-5">
+                    <i class="fas fa-bible fa-3x mb-3"></i>
                     <h3>Welcome to the Bible Reader</h3>
-                    <p class="text-muted">Select a testament, book, and chapter to start reading God's Word.</p>
-                    <div class="mt-4">
-                        <i class="fas fa-bible fa-3x text-muted"></i>
-                    </div>
+                    <p class="text-muted">Choose a book and chapter above to start reading, or search for a word to find verses.</p>
                 </div>
             `;
         }
@@ -385,6 +414,116 @@ class Bible {
                     <i class="fas fa-exclamation-triangle"></i> ${message}
                 </div>
             `;
+        }
+    }
+
+    async loadHighlights(bookId, chapter) {
+        this.highlights = {};
+        try {
+            const data = await AuthHelper.apiCall(`bible/highlights.php?book_id=${bookId}&chapter=${chapter}`);
+            if (data.success && data.highlights) {
+                data.highlights.forEach(h => {
+                    this.highlights[h.verse_number] = h.color;
+                });
+            }
+        } catch (error) {
+            console.error('Error loading highlights:', error);
+        }
+    }
+
+    // Shows a small popup of color swatches (plus a remove option for
+    // already-highlighted verses) anchored to the tapped verse. Appended to
+    // <body> with fixed positioning so it always renders above surrounding
+    // verses regardless of stacking context.
+    toggleHighlightMenu(verseEl, verseNumber) {
+        const existingMenu = document.querySelector('.highlight-menu');
+        const wasOpenForThisVerse = existingMenu && existingMenu.dataset.verseNumber === String(verseNumber);
+        this.closeHighlightMenu();
+
+        if (wasOpenForThisVerse) {
+            return;
+        }
+
+        const currentColor = this.highlights[verseNumber];
+
+        const menu = document.createElement('div');
+        menu.className = 'highlight-menu';
+        menu.dataset.verseNumber = String(verseNumber);
+        menu.addEventListener('click', e => e.stopPropagation());
+
+        let swatchesHtml = this.highlightColors.map(color => `
+            <button type="button" class="highlight-swatch highlight-swatch-${color} ${currentColor === color ? 'active' : ''}" data-color="${color}" aria-label="${color} highlight" title="${color.charAt(0).toUpperCase() + color.slice(1)} highlight"></button>
+        `).join('');
+
+        if (currentColor) {
+            swatchesHtml += `
+                <button type="button" class="highlight-swatch highlight-swatch-remove" data-color="" aria-label="Remove highlight" title="Remove highlight">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        }
+
+        menu.innerHTML = `
+            <span class="highlight-menu-label">Highlight</span>
+            <div class="highlight-swatches">${swatchesHtml}</div>
+        `;
+
+        menu.querySelectorAll('.highlight-swatch').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const color = btn.dataset.color;
+                if (color) {
+                    this.saveHighlight(verseEl, verseNumber, color);
+                } else {
+                    this.removeHighlight(verseEl, verseNumber);
+                }
+                this.closeHighlightMenu();
+            });
+        });
+
+        document.body.appendChild(menu);
+
+        // Position in document coordinates so the menu scrolls naturally
+        // with the page instead of drifting away from its verse.
+        const rect = verseEl.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+        menu.style.left = `${rect.left + window.scrollX}px`;
+
+        // Keep the menu within the viewport horizontally
+        const menuRect = menu.getBoundingClientRect();
+        if (menuRect.right > window.innerWidth) {
+            menu.style.left = `${Math.max(8, window.innerWidth + window.scrollX - menuRect.width - 8)}px`;
+        }
+    }
+
+    async saveHighlight(verseEl, verseNumber, color) {
+        try {
+            await AuthHelper.apiCall('bible/highlights.php', 'POST', {
+                book_id: this.currentBookId,
+                chapter: this.currentChapter,
+                verse_number: verseNumber,
+                color: color
+            });
+            this.highlights[verseNumber] = color;
+            this.setVerseHighlightClass(verseEl, color);
+        } catch (error) {
+            console.error('Error saving highlight:', error);
+        }
+    }
+
+    async removeHighlight(verseEl, verseNumber) {
+        try {
+            await AuthHelper.apiCall(`bible/highlights.php?book_id=${this.currentBookId}&chapter=${this.currentChapter}&verse_number=${verseNumber}`, 'DELETE');
+            delete this.highlights[verseNumber];
+            this.setVerseHighlightClass(verseEl, null);
+        } catch (error) {
+            console.error('Error removing highlight:', error);
+        }
+    }
+
+    setVerseHighlightClass(verseEl, color) {
+        this.highlightColors.forEach(c => verseEl.classList.remove(`highlight-${c}`));
+        if (color) {
+            verseEl.classList.add(`highlight-${color}`);
         }
     }
 }

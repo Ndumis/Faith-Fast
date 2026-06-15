@@ -187,10 +187,24 @@ class CRUD {
         }
         
         if (!empty($orderBy)) {
+            // Only allow "column [ASC|DESC]" lists - guards against SQL
+            // injection if a caller ever passes user input through here.
+            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?)*$/i', $orderBy)) {
+                throw new Exception('Invalid order by clause');
+            }
             $sql .= " ORDER BY $orderBy";
         }
-        
+
         if (!empty($limit)) {
+            // Only allow "count" or "offset, count" - guards against SQL
+            // injection via the limit parameter.
+            if (is_numeric($limit)) {
+                $limit = (int)$limit;
+            } elseif (preg_match('/^\s*(\d+)\s*,\s*(\d+)\s*$/', $limit, $m)) {
+                $limit = (int)$m[1] . ', ' . (int)$m[2];
+            } else {
+                throw new Exception('Invalid limit clause');
+            }
             $sql .= " LIMIT $limit";
         }
         

@@ -52,9 +52,10 @@ try {
             mkdir($uploadDir, 0755, true);
         }
         
-        $fileName = time() . '_' . basename($_FILES['file']['name']);
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'mp3', 'mp4', 'wav', 'webm', 'mov'];
+        $fileName = safeUploadFilename($_FILES['file']['name'], $allowedExtensions);
         $uploadPath = $uploadDir . $fileName;
-        
+
         if (move_uploaded_file($_FILES['file']['tmp_name'], $uploadPath)) {
             $updateData['file_url'] = 'assets/uploads/' . $fileName;
             $updateData['file_type'] = $_FILES['file']['type'];

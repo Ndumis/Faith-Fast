@@ -19,8 +19,15 @@ if (!isset($input['title']) || !isset($input['content']) || !isset($input['entry
 }
 
 try {
-    $user_id = 1; // From JWT
-    
+    $authUser = getAuthUser();
+    if (!$authUser) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required']);
+        exit;
+    }
+
+    $user_id = $authUser['user_id'];
+
     $journalCrud = new CRUD('journal_entries');
     
     $entryData = [

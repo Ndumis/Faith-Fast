@@ -88,8 +88,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Login failed: ' . $e->getMessage(),
-        'debug' => $e->getTraceAsString() // Remove this in production
+        'message' => 'Login failed: ' . $e->getMessage()
     ]);
 }
 ?>

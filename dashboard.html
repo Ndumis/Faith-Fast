@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/brand-overrides.css?v=20260614a">
 
     <!-- Branding (customize js/branding-config.js per deployment) -->
     <script src="js/branding-config.js"></script>
@@ -694,7 +695,10 @@
             <!-- Bible Tab - Fixed Structure -->
 			<div class="tab-content" id="bible-tab">
 				<div class="tab-header">
-					<h2><i class="fas fa-bible"></i> Bible</h2>
+					<div class="tab-heading">
+						<h2><i class="fas fa-bible"></i> Bible</h2>
+						<p class="tab-subtitle">Read God's Word chapter by chapter, or search for a word or phrase.</p>
+					</div>
 				</div>
 
 				<div class="bible-container">
@@ -702,7 +706,7 @@
 					<!-- Bible Controls (Filters) -->
 					<div class="bible-controls card mb-4">
 						<div class="card-header">
-							<h3>Bible Navigation</h3>
+							<h3>Find a Passage</h3>
 						</div>
 						<div class="card-body">
 							<div class="row g-3">
@@ -735,6 +739,16 @@
 									</button>
 								</div>
 							</div>
+							<hr>
+							<div class="bible-search-row">
+								<label for="bibleSearch" class="form-label">Or search for a word or phrase</label>
+								<div class="input-group">
+									<input type="text" id="bibleSearch" class="form-control" placeholder="e.g. love, hope, faith">
+									<button class="btn btn-primary" id="searchBible" type="button">
+										<i class="fas fa-search"></i> Search
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 
@@ -743,25 +757,11 @@
 						<div class="card-body">
 							<div id="bibleContent" class="bible-content">
 								<div class="welcome-message text-center py-5">
+									<i class="fas fa-bible fa-3x mb-3"></i>
 									<h3>Welcome to the Bible Reader</h3>
-									<p class="text-muted">Select a testament, book, and chapter to start reading God's Word.</p>
+									<p class="text-muted">Choose a book and chapter above to start reading, or search for a word to find verses.</p>
 								</div>
 							</div>
-						</div>
-					</div>
-
-					<!-- Alternative Bible View (Books/Chapters/Verses) - Hidden by default -->
-					<div id="bibleApp" style="display: none;">
-						<div id="bibleBooksView">
-							<div id="bibleBooksContainer"></div>
-						</div>
-						<div id="bibleChaptersView" class="d-none">
-							<button id="backToBooks" class="btn btn-secondary mb-3">← Back to Books</button>
-							<div id="bibleChaptersContainer"></div>
-						</div>
-						<div id="bibleVersesView" class="d-none">
-							<button id="backToChapters" class="btn btn-secondary mb-3">← Back to Chapters</button>
-							<div id="bibleVersesContainer"></div>
 						</div>
 					</div>
 				</div>
@@ -842,6 +842,7 @@
 						<div class="section-header">
 							<h3>Resources Library</h3>
 							<div class="filter-controls">
+								<input type="text" id="resourceSearch" class="form-control" placeholder="Search resources..." autocomplete="off">
 								<select id="categoryFilter" class="form-select">
 									<option value="all">All Categories</option>
 									<option value="document">Documents</option>
@@ -869,16 +870,19 @@
                         <div class="card-body">
                             <div class="profile-info">
                                 <div class="avatar-section">
-                                    <img id="avatarPreview" src="" alt="Profile Picture" class="avatar">
-                                    <input type="file" id="uploadAvatar" accept="image/*" style="display: none;">
-                                    <button class="btn btn-outline btn-small" onclick="document.getElementById('uploadAvatar').click()">
-                                        Change Photo
+                                    <div class="profile-avatar">
+                                        <img id="avatarPreview" src="" alt="Profile picture" class="profile-avatar-img">
+                                        <div id="avatarInitials" class="profile-avatar-initials">U</div>
+                                    </div>
+                                    <input type="file" id="uploadAvatar" accept="image/*" class="visually-hidden-input">
+                                    <button type="button" class="btn btn-outline btn-small" onclick="document.getElementById('uploadAvatar').click()">
+                                        <i class="fas fa-camera"></i> Change Photo
                                     </button>
                                 </div>
                                 <div class="profile-details">
-                                    <h3 id="profileDisplayName">User Name</h3>
-                                    <p id="profileEmail">user@example.com</p>
-                                    <span class="badge" id="profileSubscription">Free Account</span>
+                                    <h3 id="profileDisplayName">Your Name</h3>
+                                    <p id="profileEmailDisplay">your@email.com</p>
+                                    <span class="badge profile-subscription-badge" id="profileSubscription">Free Account</span>
                                 </div>
                             </div>
                         </div>
@@ -892,11 +896,11 @@
                             <div class="card-body">
                                 <div class="form-group">
                                     <label for="profileName">Full Name</label>
-                                    <input type="text" id="profileName" class="form-control">
+                                    <input type="text" id="profileName" class="form-control" autocomplete="name">
                                 </div>
                                 <div class="form-group">
                                     <label for="profileEmail">Email</label>
-                                    <input type="email" id="profileEmail" class="form-control">
+                                    <input type="email" id="profileEmail" class="form-control" autocomplete="email">
                                 </div>
                                 <div class="form-group">
                                     <label for="profileAge">Age Group</label>
@@ -929,15 +933,15 @@
                             <div class="card-body">
                                 <div class="form-group">
                                     <label for="currentPassword">Current Password</label>
-                                    <input type="password" id="currentPassword" class="form-control">
+                                    <input type="password" id="currentPassword" class="form-control" autocomplete="current-password">
                                 </div>
                                 <div class="form-group">
                                     <label for="newPassword">New Password</label>
-                                    <input type="password" id="newPassword" class="form-control">
+                                    <input type="password" id="newPassword" class="form-control" autocomplete="new-password">
                                 </div>
                                 <div class="form-group">
                                     <label for="confirmPassword">Confirm New Password</label>
-                                    <input type="password" id="confirmPassword" class="form-control">
+                                    <input type="password" id="confirmPassword" class="form-control" autocomplete="new-password">
                                 </div>
                                 <button class="btn btn-primary" id="updatePassword">
                                     <i class="fas fa-key"></i> Update Password

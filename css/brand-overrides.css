@@ -1,0 +1,74 @@
+/* ==========================================================================
+   Brand color overrides for Bootstrap
+   --------------------------------------------------------------------------
+   Loaded AFTER the Bootstrap CDN stylesheet so these rules win the cascade
+   (equal specificity, later source wins). Bootstrap's default "primary"
+   color (#0d6efd, bright blue) is replaced everywhere with the Faith Fast
+   logo palette - navy (#283655) as the primary brand color and logo-blue
+   (#4a6fa5) as the accent/hover color - without editing every template that
+   uses Bootstrap's btn-primary / text-primary / progress-bar / etc.
+   ========================================================================== */
+
+:root {
+  --bs-primary: #283655;
+  --bs-primary-rgb: 40, 54, 85;
+  --bs-link-color: #4a6fa5;
+  --bs-link-color-rgb: 74, 111, 165;
+  --bs-link-hover-color: #283655;
+  --bs-link-hover-color-rgb: 40, 54, 85;
+}
+
+/* Solid primary buttons (e.g. "Start a Fast", "Save Changes") */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: #283655;
+  --bs-btn-border-color: #283655;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #4a6fa5;
+  --bs-btn-hover-border-color: #4a6fa5;
+  --bs-btn-focus-shadow-rgb: 74, 111, 165;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #1d2740;
+  --bs-btn-active-border-color: #1d2740;
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: #283655;
+  --bs-btn-disabled-border-color: #283655;
+}
+
+/* Outline primary buttons & toggle/segmented controls (e.g. fasting sub-tabs) */
+.btn-outline-primary {
+  --bs-btn-color: #283655;
+  --bs-btn-border-color: #283655;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #283655;
+  --bs-btn-hover-border-color: #283655;
+  --bs-btn-focus-shadow-rgb: 74, 111, 165;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #283655;
+  --bs-btn-active-border-color: #283655;
+  --bs-btn-disabled-color: #283655;
+}
+
+/* Progress bars (fasting progress, etc.) */
+.progress-bar {
+  background-color: #4a6fa5;
+}
+
+/* Checkboxes / radios (profile settings, preferences) */
+.form-check-input:checked {
+  background-color: #283655;
+  border-color: #283655;
+}
+
+.form-check-input:focus,
+.form-control:focus,
+.form-select:focus {
+  border-color: #4a6fa5;
+  box-shadow: 0 0 0 0.25rem rgba(74, 111, 165, 0.25);
+}
+
+/* Active state for pill/tab navigation built with Bootstrap nav classes */
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: #283655;
+}

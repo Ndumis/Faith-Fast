@@ -19,7 +19,14 @@ if (!isset($input['id'])) {
 }
 
 try {
-    $user_id = 1; // From JWT
+    $authUser = getAuthUser();
+    if (!$authUser) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required']);
+        exit;
+    }
+
+    $user_id = $authUser['user_id'];
     $resource_id = $input['id'];
     
     // Verify resource belongs to user

@@ -13,8 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 try {
-    $user_id = 1; // From JWT
-    
+    $authUser = getAuthUser();
+    if (!$authUser) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required']);
+        exit;
+    }
+
+    $user_id = $authUser['user_id'];
+
     $userCrud = new CRUD('users');
     
     $updateData = [];

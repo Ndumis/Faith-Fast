@@ -28,15 +28,34 @@ class Profile {
     renderProfile() {
         if (!this.user) return;
 
-        document.getElementById('profileName').value = this.user.name;
-        document.getElementById('profileEmail').value = this.user.email;
-        document.getElementById('profileAge').value = this.user.age_group;
-        document.getElementById('profilePosition').value = this.user.position;
-        document.getElementById('profileSubscription').value = this.user.subscription;
-        
-        // Update avatar preview
+        document.getElementById('profileName').value = this.user.name || '';
+        document.getElementById('profileEmail').value = this.user.email || '';
+        document.getElementById('profileAge').value = this.user.age_group || '';
+        document.getElementById('profilePosition').value = this.user.position || '';
+
+        // Profile header card
+        document.getElementById('profileDisplayName').textContent = this.user.name || 'Your Name';
+        document.getElementById('profileEmailDisplay').textContent = this.user.email || '';
+
+        const subscription = this.user.subscription || 'free';
+        document.getElementById('profileSubscription').textContent =
+            subscription.charAt(0).toUpperCase() + subscription.slice(1) + ' Account';
+
+        this.updateAvatarDisplay();
+    }
+
+    updateAvatarDisplay() {
+        const avatarImg = document.getElementById('avatarPreview');
+        const avatarInitials = document.getElementById('avatarInitials');
+
         if (this.user.profile_picture) {
-            document.getElementById('avatarPreview').src = this.user.profile_picture;
+            avatarImg.src = this.user.profile_picture;
+            avatarImg.style.display = 'block';
+            avatarInitials.style.display = 'none';
+        } else {
+            avatarInitials.textContent = (this.user.name || '?').charAt(0).toUpperCase();
+            avatarImg.style.display = 'none';
+            avatarInitials.style.display = 'flex';
         }
     }
 
@@ -45,8 +64,7 @@ class Profile {
             name: document.getElementById('profileName').value,
             email: document.getElementById('profileEmail').value,
             age_group: document.getElementById('profileAge').value,
-            position: document.getElementById('profilePosition').value,
-            subscription: document.getElementById('profileSubscription').value
+            position: document.getElementById('profilePosition').value
         };
 
         try {
@@ -55,6 +73,7 @@ class Profile {
             if (response.success) {
                 this.showNotification('Profile updated successfully', 'success');
                 await this.loadUserProfile();
+                this.renderProfile();
             }
         } catch (error) {
             this.showNotification('Error updating profile', 'error');
@@ -107,7 +126,8 @@ class Profile {
             
             if (result.success) {
                 this.showNotification('Avatar updated successfully', 'success');
-                document.getElementById('avatarPreview').src = result.avatar_url;
+                this.user.profile_picture = result.avatar_url;
+                this.updateAvatarDisplay();
             }
         } catch (error) {
             this.showNotification('Error uploading avatar', 'error');

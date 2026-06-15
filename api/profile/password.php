@@ -19,8 +19,15 @@ if (!isset($input['current_password']) || !isset($input['new_password'])) {
 }
 
 try {
-    $user_id = 1; // From JWT
-    
+    $authUser = getAuthUser();
+    if (!$authUser) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required']);
+        exit;
+    }
+
+    $user_id = $authUser['user_id'];
+
     $userCrud = new CRUD('users');
     $user = $userCrud->read($user_id);
     

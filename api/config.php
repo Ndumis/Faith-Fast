@@ -31,8 +31,12 @@ function appUrl() {
 // JWT Secret for authentication
 define('JWT_SECRET', 'faith_fast_secret_2024');
 
-// CORS headers
-header('Access-Control-Allow-Origin: *');
+// CORS headers - restrict to this server's own origin. A wildcard "*"
+// would let any third-party site read API responses using a stolen JWT;
+// same-origin requests are unaffected since browsers don't enforce CORS
+// for them anyway.
+$selfOrigin = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+header('Access-Control-Allow-Origin: ' . $selfOrigin);
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Content-Type: application/json');
@@ -95,6 +99,17 @@ function getAuthUser() {
     }
     
     return false;
+}
+
+// Validates an uploaded file's extension against a whitelist and returns a
+// random, safe filename - prevents path traversal, double-extension tricks
+// (e.g. "shell.php.jpg") and uploading executable file types.
+function safeUploadFilename($originalName, array $allowedExtensions) {
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExtensions, true)) {
+        throw new Exception('File type not allowed. Allowed types: ' . implode(', ', $allowedExtensions));
+    }
+    return bin2hex(random_bytes(16)) . '.' . $ext;
 }
 
 function escapeTableName($tableName) {

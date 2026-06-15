@@ -11,8 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $user_id = 1; // From JWT
-    
+    $authUser = getAuthUser();
+    if (!$authUser) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required']);
+        exit;
+    }
+
+    $user_id = $authUser['user_id'];
+
     $title = $_POST['title'] ?? '';
     $description = $_POST['description'] ?? '';
     $category = $_POST['category'] ?? '';
@@ -33,9 +40,10 @@ try {
             mkdir($uploadDir, 0755, true);
         }
         
-        $fileName = time() . '_' . basename($_FILES['file']['name']);
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'mp3', 'mp4', 'wav', 'webm', 'mov'];
+        $fileName = safeUploadFilename($_FILES['file']['name'], $allowedExtensions);
         $uploadPath = $uploadDir . $fileName;
-        
+
         if (move_uploaded_file($_FILES['file']['tmp_name'], $uploadPath)) {
             $uploadPath = 'assets/images/' . $fileName;
             $fileType = $_FILES['file']['type'];

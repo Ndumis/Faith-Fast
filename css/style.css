@@ -1,16 +1,19 @@
 /* ===== VARIABLES ===== */
 :root {
-  --primary: #000000;
+  /* Brand palette - derived from the logo (navy blue -> near-black on
+     white). Replaces flat black/grey with the logo's navy + blue so the
+     UI feels warmer while keeping high contrast for readability. */
+  --primary: #283655;
   --secondary: #ffffff;
-  --accent: #333333;
-  --accent-light: #f5f5f5;
+  --accent: #4a6fa5;
+  --accent-light: #eef2f8;
   --brand-gradient: linear-gradient(135deg, #4a6fa5 0%, #283655 55%, #0b0c10 100%);
   --light-gray: #f8f9fa;
   --medium-gray: #e9ecef;
   --dark-gray: #6c757d;
-  --text-light: #8a8a8a;
-  --success: #28a745;
-  --warning: #ffc107;
+  --text-light: #6c757d;
+  --success: #1e7e34;
+  --warning: #cc8400;
   --error: #dc3545;
   --info: #17a2b8;
   --card-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
@@ -1520,7 +1523,7 @@ body {
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
-  color: var(--dark, #333);
+  color: var(--primary);
 }
 
 .pwa-install-modal .pwa-modal-body {
@@ -1801,7 +1804,7 @@ body {
   color: var(--text-light);
 }
 
-.no-data-message i {
+.no-data-message > i {
   display: block;
   font-size: 2.5rem;
   margin-bottom: 1rem;
@@ -1882,12 +1885,12 @@ body {
 .status-badge {
   text-transform: capitalize;
   background: var(--medium-gray);
-  color: var(--accent);
+  color: var(--accent) !important;
 }
 
 .prayer-status.answered .status-badge {
   background: var(--success);
-  color: var(--secondary);
+  color: var(--secondary) !important;
 }
 
 .prayer-meta {
@@ -2129,8 +2132,436 @@ body {
   padding: 1rem 0;
 }
 
+/* ===== RESOURCES TAB ===== */
+.resources-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.resources-grid .no-data-message {
+  grid-column: 1 / -1;
+}
+
+.resource-item .card-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.resource-card-header {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.resource-author h6 {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.resource-author-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+.resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.resource-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+  word-break: break-word;
+}
+
+.resource-description {
+  color: var(--accent);
+  line-height: 1.6;
+  word-break: break-word;
+  margin-bottom: 0.75rem;
+}
+
+.resource-description ul,
+.resource-description ol {
+  margin: 0.5rem 0 0.5rem 1.5rem;
+}
+
+.resource-category-badge {
+  text-transform: capitalize;
+  background: var(--accent-light);
+  color: var(--primary) !important;
+  font-weight: 500;
+}
+
+.resource-card-footer {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.media-preview .document-placeholder {
+  background: var(--accent-light) !important;
+  border: 1px solid var(--medium-gray) !important;
+}
+
+.media-preview .document-placeholder i {
+  color: var(--accent);
+}
+
+.like-btn.liked {
+  background-color: var(--error);
+  color: var(--secondary);
+  border-color: var(--error);
+}
+
+@media (max-width: 768px) {
+  .resources-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== PROFILE TAB ===== */
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-header .card-body {
+  background: var(--brand-gradient);
+  color: var(--secondary);
+  border-radius: 12px;
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.profile-avatar {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.profile-avatar-img,
+.profile-avatar-initials {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+.profile-avatar-img {
+  display: none;
+  object-fit: cover;
+}
+
+/* Hidden file input for avatar upload. The tab-switcher in app.js clears
+   inline display styles on every element when a tab activates, so the
+   hiding rule must live in the stylesheet (not an inline style) to survive
+   the reset. */
+.visually-hidden-input {
+  display: none;
+}
+
+.profile-avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--secondary);
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.profile-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-details h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--secondary);
+  word-break: break-word;
+}
+
+.profile-details p {
+  margin-bottom: 0.75rem;
+  opacity: 0.9;
+  word-break: break-word;
+}
+
+.profile-subscription-badge {
+  text-transform: capitalize;
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.profile-header .btn-outline {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: var(--secondary);
+}
+
+.profile-header .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--secondary);
+  color: var(--secondary);
+}
+
+.profile-sections {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .profile-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 576px) {
   .fast-detail-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===== TAB HEADING / SUBTITLE (shared) ===== */
+.tab-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tab-subtitle {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+/* ===== BIBLE TAB ===== */
+.bible-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bible-controls .card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+.bible-content {
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: var(--primary);
+}
+
+.bible-content .welcome-message i,
+.bible-content .loading-message i {
+  color: var(--accent);
+}
+
+.chapter-header h3 {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.chapter-navigation .btn {
+  min-height: 42px;
+  font-weight: 600;
+}
+
+.verse-item {
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.verse-item:hover,
+.verse-item:focus {
+  background: var(--accent-light);
+  outline: none;
+}
+
+.verse-number {
+  display: inline-block;
+  min-width: 1.7em;
+  margin-right: 0.4rem;
+  font-weight: 700;
+  font-size: 0.8em;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+.highlight-hint {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.highlight-hint i {
+  color: var(--accent);
+  margin-right: 0.3rem;
+}
+
+/* Highlighted verse backgrounds - soft tones chosen to keep the
+   verse text (var(--primary)) easily readable on top. */
+.verse-item.highlight-yellow {
+  background: #fff3b0;
+}
+
+.verse-item.highlight-green {
+  background: #c8e6c9;
+}
+
+.verse-item.highlight-blue {
+  background: #bbdefb;
+}
+
+.verse-item.highlight-pink {
+  background: #f8c9dc;
+}
+
+.verse-item.highlight-yellow:hover,
+.verse-item.highlight-green:hover,
+.verse-item.highlight-blue:hover,
+.verse-item.highlight-pink:hover {
+  filter: brightness(0.97);
+}
+
+/* Highlight color picker popup - positioned via inline style (JS) in
+   document coordinates so it scrolls with the page and always renders
+   above surrounding verses regardless of stacking context. */
+.highlight-menu {
+  position: absolute;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--secondary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  cursor: default;
+}
+
+.highlight-menu-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.highlight-swatches {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.highlight-swatch {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.highlight-swatch:hover {
+  transform: scale(1.1);
+}
+
+.highlight-swatch.active {
+  border-color: var(--primary);
+}
+
+.highlight-swatch-yellow {
+  background: #fff3b0;
+}
+
+.highlight-swatch-green {
+  background: #c8e6c9;
+}
+
+.highlight-swatch-blue {
+  background: #bbdefb;
+}
+
+.highlight-swatch-pink {
+  background: #f8c9dc;
+}
+
+.highlight-swatch-remove {
+  background: var(--accent-light);
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .bible-content {
+    font-size: 1.05rem;
+    line-height: 1.85;
+  }
+
+  .chapter-header .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem;
+  }
+
+  .chapter-navigation {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .chapter-navigation .btn {
+    flex: 1;
+  }
+
+  .highlight-menu {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 3rem);
+  }
+
+  .highlight-swatch {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
   }
 }

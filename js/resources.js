@@ -2,6 +2,7 @@ class Resources {
     constructor() {
         this.resources = [];
         this.currentCategory = 'all';
+        this.searchQuery = '';
         this.editingResourceId = null;
         this.isFormVisible = false;
     }
@@ -86,29 +87,38 @@ class Resources {
         console.log('Rendering resources:', filteredResources.length);
 
         if (filteredResources.length === 0) {
-            container.innerHTML = `
-                <div class="no-data-message text-center py-5">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <h3>No Resources Found</h3>
-                    <p class="text-muted">Start by adding your first resource!</p>
-                    <button class="btn btn-primary mt-2" onclick="resourcesApp.showForm()">
-                        <i class="fas fa-plus"></i> Add First Resource
-                    </button>
-                </div>
-            `;
+            if (this.resources.length === 0) {
+                container.innerHTML = `
+                    <div class="no-data-message text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h3>No Resources Found</h3>
+                        <p class="text-muted">Start by adding your first resource!</p>
+                        <button class="btn btn-primary mt-2" onclick="resourcesApp.showForm()">
+                            <i class="fas fa-plus"></i> Add First Resource
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="no-data-message text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h3>No Matching Resources</h3>
+                        <p class="text-muted">Try a different search term or category.</p>
+                        <button class="btn btn-outline-primary mt-2" onclick="resourcesApp.clearFilters()">
+                            <i class="fas fa-times"></i> Clear Search & Filters
+                        </button>
+                    </div>
+                `;
+            }
             return;
         }
 
         container.innerHTML = filteredResources.map(resource => `
-            <div class="resource-item card mb-4" data-resource-id="${resource.id}">
+            <div class="resource-item card" data-resource-id="${resource.id}">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="d-flex align-items-center">
-                            <img src="${resource.author_avatar || 'assets/images/default-avatar.png'}" 
-                                 alt="${resource.author_name}" 
-                                 class="rounded-circle me-3" 
-                                 width="40" 
-                                 height="40">
+                    <div class="resource-card-header d-flex justify-content-between align-items-start mb-3">
+                        <div class="resource-author d-flex align-items-center">
+                            <div class="user-avatar resource-author-avatar me-3">${(resource.author_name || '?').charAt(0).toUpperCase()}</div>
                             <div>
                                 <h6 class="mb-0">${resource.author_name}</h6>
                                 <small class="text-muted">${new Date(resource.created_at).toLocaleDateString()}</small>
@@ -123,18 +133,18 @@ class Resources {
                             </button>
                         </div>
                     </div>
-                    
-                    <h5 class="card-title">${this.escapeHtml(resource.title)}</h5>
-                    <div class="card-text">${resource.description ? RichTextEditor.contentToHtml(resource.description) : 'No description provided.'}</div>
-                    
+
+                    <h5 class="card-title resource-title">${this.escapeHtml(resource.title)}</h5>
+                    <div class="card-text resource-description">${resource.description ? RichTextEditor.contentToHtml(resource.description) : 'No description provided.'}</div>
+
                     ${this.renderMediaPreview(resource)}
-                    
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <span class="badge bg-secondary">${resource.category}</span>
+
+                    <div class="resource-card-footer d-flex justify-content-between align-items-center mt-3">
+                        <span class="badge resource-category-badge">${resource.category}</span>
                         <div class="d-flex align-items-center">
-                            <button class="btn btn-sm btn-outline-danger like-btn ${resource.is_liked ? 'liked' : ''}" 
+                            <button class="btn btn-sm btn-outline-danger like-btn ${resource.is_liked ? 'liked' : ''}"
                                     data-resource-id="${resource.id}">
-                                <i class="fas fa-heart${resource.is_liked ? '' : '-outline'}"></i> 
+                                <i class="fas fa-heart${resource.is_liked ? '' : '-outline'}"></i>
                                 <span class="like-count">${resource.like_count || 0}</span>
                             </button>
                         </div>
@@ -290,6 +300,15 @@ class Resources {
         if (categoryFilter) {
             categoryFilter.addEventListener('change', (e) => {
                 this.currentCategory = e.target.value;
+                this.renderResources();
+            });
+        }
+
+        // Search by title or description
+        const searchInput = document.getElementById('resourceSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim().toLowerCase();
                 this.renderResources();
             });
         }
@@ -526,17 +545,38 @@ class Resources {
         }
     }
 
+    clearFilters() {
+        this.currentCategory = 'all';
+        this.searchQuery = '';
+
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) categoryFilter.value = 'all';
+
+        const searchInput = document.getElementById('resourceSearch');
+        if (searchInput) searchInput.value = '';
+
+        this.renderResources();
+    }
+
     getFilteredResources() {
         let filtered = [...this.resources];
-        
+
         // Apply category filter
         if (this.currentCategory !== 'all') {
             filtered = filtered.filter(resource => resource.category === this.currentCategory);
         }
-        
+
+        // Apply search query (title or description)
+        if (this.searchQuery) {
+            filtered = filtered.filter(resource =>
+                resource.title.toLowerCase().includes(this.searchQuery) ||
+                RichTextEditor.getPlainText(resource.description).toLowerCase().includes(this.searchQuery)
+            );
+        }
+
         // Sort by date (newest first)
         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
+
         return filtered;
     }
 

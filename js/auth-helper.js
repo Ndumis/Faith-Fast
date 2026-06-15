@@ -34,13 +34,21 @@ class AuthHelper {
     }
 
     static async apiCall(endpoint, method = 'GET', data = null) {
+        // FormData (file uploads) must be sent as-is with no Content-Type
+        // header - the browser sets the multipart boundary itself. JSON-
+        // stringifying a FormData object produces "{}" and silently drops
+        // the file/fields.
+        const isFormData = data instanceof FormData;
+        const token = this.getToken();
         const options = {
             method: method,
-            headers: this.getAuthHeaders()
+            headers: isFormData
+                ? { 'Authorization': token ? `Bearer ${token}` : '' }
+                : this.getAuthHeaders()
         };
 
         if (data) {
-            options.body = JSON.stringify(data);
+            options.body = isFormData ? data : JSON.stringify(data);
         }
 
         try {
