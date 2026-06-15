@@ -8,7 +8,7 @@ class Dashboard {
         this.upcomingFasts = [];
         this.completedFasts = [];
         this.filters = {
-            year: 'all',
+            year: new Date().getFullYear(),
             month: 'all',
             fastType: 'all'
         };

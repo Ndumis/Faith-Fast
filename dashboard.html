@@ -52,10 +52,16 @@
                     <h1 class="app-name">Faith Fast</h1>
                 </div>
                 <div class="header-actions">
-					<div class="user-menu">
+					<div class="user-menu" id="userMenuToggle">
 						<div class="user-avatar" id="userAvatar">U</div>
 						<span class="user-name" id="userName">User</span>
-						<button class="logout-btn" id="logoutBtn">
+						<i class="fas fa-chevron-down user-menu-caret"></i>
+					</div>
+					<div class="user-menu-dropdown" id="userMenuDropdown">
+						<button class="user-menu-item" data-tab="profile">
+							<i class="fas fa-user"></i> Profile
+						</button>
+						<button class="user-menu-item user-menu-item-danger" id="logoutBtn">
 							<i class="fas fa-sign-out-alt"></i> Logout
 						</button>
 					</div>
@@ -76,6 +82,10 @@
                     <i class="fas fa-clock"></i>
                     <span>Fasting</span>
                 </button>
+                <button class="nav-tab" data-tab="bible">
+                    <i class="fas fa-bible"></i>
+                    <span>Bible</span>
+                </button>
                 <button class="nav-tab" data-tab="journal">
                     <i class="fas fa-book"></i>
                     <span>Journal</span>
@@ -93,19 +103,13 @@
                     <i class="fas fa-users"></i>
                     <span>Groups</span>
                 </button>
-                <button class="nav-tab" data-tab="bible">
-                    <i class="fas fa-bible"></i>
-                    <span>Bible</span>
-                </button>
                 <button class="nav-tab" data-tab="resources">
                     <i class="fas fa-file-alt"></i>
                     <span>Resources</span>
                 </button>
-                <button class="nav-tab" data-tab="profile">
-                    <i class="fas fa-user"></i>
-                    <span>Profile</span>
-                </button>
             </div>
+            <div class="nav-fade nav-fade-left" aria-hidden="true"><i class="fas fa-chevron-left"></i></div>
+            <div class="nav-fade nav-fade-right" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
         </div>
     </nav>
 
@@ -699,9 +703,17 @@
 						<h2><i class="fas fa-bible"></i> Bible</h2>
 						<p class="tab-subtitle">Read God's Word chapter by chapter, or search for a word or phrase.</p>
 					</div>
+					<div class="bible-view-switch" role="group" aria-label="Bible view">
+						<button type="button" class="btn btn-outline-primary btn-sm active" id="bibleReadViewBtn">
+							<i class="fas fa-book-open"></i> Read
+						</button>
+						<button type="button" class="btn btn-outline-primary btn-sm" id="bibleHighlightsViewBtn">
+							<i class="fas fa-highlighter"></i> My Highlights
+						</button>
+					</div>
 				</div>
 
-				<div class="bible-container">
+				<div class="bible-container" id="bibleReadView">
 
 					<!-- Bible Controls (Filters) -->
 					<div class="bible-controls card mb-4">
@@ -762,6 +774,19 @@
 									<p class="text-muted">Choose a book and chapter above to start reading, or search for a word to find verses.</p>
 								</div>
 							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- My Highlights -->
+				<div class="bible-container d-none" id="bibleHighlightsView">
+					<div class="bible-reader card">
+						<div class="card-header">
+							<h3>My Highlights</h3>
+						</div>
+						<div class="card-body">
+							<p class="text-muted">A quick way back to the verses you've highlighted while reading.</p>
+							<div id="bibleHighlightsContent"></div>
 						</div>
 					</div>
 				</div>

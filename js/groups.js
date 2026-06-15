@@ -555,39 +555,44 @@ class Groups {
 					</div>
 					<div class="card-body">
 						<div class="members-management-list">
-							${members.map(member => `
+							${members.map(member => {
+								const isSelf = member.user_id === AuthHelper.getUser()?.id;
+								return `
 								<div class="member-management-item d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
 									<div class="d-flex align-items-center">
 										<div class="member-avatar me-3">
 											<i class="fas fa-user-circle ${member.is_online ? 'text-success' : 'text-muted'} fa-2x"></i>
 										</div>
 										<div>
-											<h5 class="mb-1">${this.escapeHtml(member.name)}</h5>
+											<h5 class="mb-1">${this.escapeHtml(member.name)}${isSelf ? ' (you)' : ''}</h5>
 											<span class="badge ${member.role === 'admin' ? 'bg-primary' : 'bg-secondary'}">
 												${member.role}
 											</span>
-											${member.is_online ? 
-												'<span class="badge bg-success">Online</span>' : 
+											${member.is_online ?
+												'<span class="badge bg-success">Online</span>' :
 												'<span class="badge bg-secondary">Offline</span>'
 											}
 										</div>
 									</div>
 									<div class="member-actions">
-										${member.role !== 'admin' ? `
-											<button class="btn btn-warning btn-sm make-admin" 
-													data-member-id="${member.membership_id}" 
-													data-user-id="${member.user_id}">
-												Make Admin
+										${!isSelf ? `
+											${member.role !== 'admin' ? `
+												<button class="btn btn-warning btn-sm make-admin"
+														data-member-id="${member.membership_id}"
+														data-user-id="${member.user_id}">
+													Make Admin
+												</button>
+											` : ''}
+											<button class="btn btn-danger btn-sm remove-member"
+													data-member-id="${member.membership_id}"
+													data-user-name="${this.escapeHtml(member.name)}">
+												Remove
 											</button>
 										` : ''}
-										<button class="btn btn-danger btn-sm remove-member" 
-												data-member-id="${member.membership_id}" 
-												data-user-name="${this.escapeHtml(member.name)}">
-											Remove
-										</button>
 									</div>
 								</div>
-							`).join('')}
+							`;
+							}).join('')}
 						</div>
 					</div>
 				</div>
@@ -709,6 +714,101 @@ class Groups {
 		document.getElementById('deleteGroup').addEventListener('click', () => {
 			this.deleteGroup(groupId);
 		});
+	}
+
+	async updateMemberRole(memberId, role, groupId) {
+		try {
+			const response = await AuthHelper.apiCall('groups/manage.php', 'POST', {
+				action: 'update_role',
+				group_id: groupId,
+				member_id: memberId,
+				new_role: role
+			});
+
+			if (response.success) {
+				this.showMessage('Member promoted to admin', 'success');
+				this.manageGroup(groupId);
+			} else {
+				this.showMessage(response.message, 'error');
+			}
+		} catch (error) {
+			this.showMessage('Error updating member role: ' + error.message, 'error');
+		}
+	}
+
+	async removeMember(memberId, groupId) {
+		try {
+			const response = await AuthHelper.apiCall('groups/manage.php', 'POST', {
+				action: 'remove_member',
+				group_id: groupId,
+				member_id: memberId
+			});
+
+			if (response.success) {
+				this.showMessage('Member removed from group', 'success');
+				this.manageGroup(groupId);
+			} else {
+				this.showMessage(response.message, 'error');
+			}
+		} catch (error) {
+			this.showMessage('Error removing member: ' + error.message, 'error');
+		}
+	}
+
+	async updateGroupSettings(groupId) {
+		const submitBtn = document.querySelector('#updateGroupForm button[type="submit"]');
+		const originalText = submitBtn.innerHTML;
+		submitBtn.disabled = true;
+		submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+		try {
+			const response = await AuthHelper.apiCall('groups/manage.php', 'POST', {
+				action: 'update_settings',
+				group_id: groupId,
+				name: document.getElementById('editGroupName').value,
+				description: RichTextEditor.sanitizeHtml(document.getElementById('editGroupDescription').innerHTML),
+				category: document.getElementById('editGroupCategory').value,
+				is_public: document.getElementById('editIsPublic').checked,
+				requires_approval: document.getElementById('editRequiresApproval').checked
+			});
+
+			if (response.success) {
+				this.showMessage('Group settings updated', 'success');
+				await this.loadGroups();
+				await this.loadMyGroups();
+			} else {
+				this.showMessage(response.message, 'error');
+			}
+		} catch (error) {
+			this.showMessage('Error updating group settings: ' + error.message, 'error');
+		} finally {
+			submitBtn.disabled = false;
+			submitBtn.innerHTML = originalText;
+		}
+	}
+
+	async deleteGroup(groupId) {
+		if (!confirm('Delete this group permanently? This will remove all members and messages and cannot be undone.')) return;
+
+		try {
+			const response = await AuthHelper.apiCall('groups/manage.php', 'POST', {
+				action: 'delete_group',
+				group_id: groupId
+			});
+
+			if (response.success) {
+				this.showMessage('Group deleted', 'success');
+				await this.loadUserMembershipStatus();
+				await this.loadMyGroups();
+				await this.loadGroups();
+				this.currentView = 'list';
+				this.render();
+			} else {
+				this.showMessage(response.message, 'error');
+			}
+		} catch (error) {
+			this.showMessage('Error deleting group: ' + error.message, 'error');
+		}
 	}
 
 	async handleMembershipAction(membershipId, action, groupId) {
