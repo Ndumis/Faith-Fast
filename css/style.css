@@ -2930,3 +2930,23 @@ body {
     flex: 1;
   }
 }
+
+/* ===== SUBSCRIPTION GATE MODALS ===== */
+/* Sit above any other floating UI (e.g. the PWA install prompt at z-index
+   10000) so the gate truly blocks all interaction with the app. */
+#trialExpiredModal,
+#checkoutModal {
+  z-index: 10600;
+}
+
+#trialExpiredModal .modal-body i.fa-hourglass-end {
+  color: #ffb74d;
+}
+
+#checkoutModal .modal-body i.fa-credit-card {
+  color: var(--primary-color, #4caf50);
+}
+
+#trialExpiredModal .d-grid .btn {
+  white-space: normal;
+}

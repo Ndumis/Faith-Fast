@@ -1007,6 +1007,50 @@
         </div>
     </main>
 
+    <!-- Trial Expired Modal: blocking, no close button -->
+    <div class="modal" id="trialExpiredModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center p-3">
+                <div class="modal-body">
+                    <i class="fas fa-hourglass-end fa-3x text-warning mb-3"></i>
+                    <h4>Your 7-Day Trial Has Ended</h4>
+                    <p>Continue with Faith Fast on our Free plan, or check out Premium.</p>
+                    <div id="trialModalError" class="subscription-modal-error text-danger small mb-2" style="display:none;"></div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" id="continueFreeBtn">Continue with Free Plan</button>
+                        <button class="btn btn-outline-secondary" id="upgradePremiumBtn">View Premium Plan</button>
+                        <button class="btn btn-outline-danger" id="trialLogoutBtn">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium Checkout Modal: blocking "coming soon" payment placeholder -->
+    <div class="modal" id="checkoutModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Premium Plan &mdash; $9.99/month</h5>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <i class="fas fa-credit-card fa-3x text-primary mb-3"></i>
+                    <h5>Online Payments Coming Soon</h5>
+                    <p>We're putting the finishing touches on secure online payments for Premium. Hang tight!</p>
+                    <div id="payComingSoonMsg" class="alert alert-info small mb-0" style="display:none;">
+                        Payments aren't available just yet &mdash; please check back soon.
+                    </div>
+                    <div id="checkoutModalError" class="subscription-modal-error text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer flex-column">
+                    <button class="btn btn-primary w-100" id="payNowBtn">Pay Now</button>
+                    <button class="btn btn-outline-secondary w-100" id="switchToFreeBtn">Switch to Free Plan</button>
+                    <button class="btn btn-outline-danger w-100" id="checkoutLogoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 	<script src="js/auth-helper.js"></script>
     <!-- Service Worker Registration -->
     <script>
@@ -1040,7 +1084,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	<script src="js/pwa.js?v=20260614b"></script>
     <script src="js/fasting-reminders.js?v=20260615a"></script>
-    <script src="js/app.js?v=20260615a"></script>
+    <script src="js/app.js?v=20260615e"></script>
     <script src="js/dashboard.js?v=20260615b"></script>
     <script src="js/richtext-editor.js?v=20260614e"></script>
     <script src="js/fasting.js?v=20260614f"></script>

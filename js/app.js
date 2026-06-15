@@ -219,6 +219,145 @@ class FaithFastApp {
 
         this.currentUser = AuthHelper.getUser();
         this.updateUIForUser();
+        this.checkSubscriptionGate();
+    }
+
+    checkSubscriptionGate() {
+        if (!this.currentUser) return;
+
+        const subscription = this.currentUser.subscription || 'free';
+
+        if (subscription === 'trial' && this.isTrialExpired()) {
+            this.showTrialExpiredModal();
+            return;
+        }
+
+        if (subscription === 'premium') {
+            this.showCheckoutModal();
+        }
+    }
+
+    isTrialExpired() {
+        if (!this.currentUser || !this.currentUser.created_at) return false;
+
+        const createdAt = new Date(this.currentUser.created_at.replace(' ', 'T'));
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        return (Date.now() - createdAt.getTime()) >= sevenDays;
+    }
+
+    showTrialExpiredModal() {
+        const modalEl = document.getElementById('trialExpiredModal');
+        if (!modalEl) return;
+
+        this.subscriptionGateActive = true;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        modal.show();
+        this.elevateGateBackdrop();
+
+        if (!modalEl.dataset.bound) {
+            modalEl.dataset.bound = 'true';
+
+            const continueFreeBtn = document.getElementById('continueFreeBtn');
+            if (continueFreeBtn) {
+                continueFreeBtn.addEventListener('click', () => this.downgradeToFree('trialExpiredModal', continueFreeBtn, 'Continue with Free Plan'));
+            }
+
+            const upgradePremiumBtn = document.getElementById('upgradePremiumBtn');
+            if (upgradePremiumBtn) {
+                upgradePremiumBtn.addEventListener('click', () => this.showCheckoutModal());
+            }
+
+            const trialLogoutBtn = document.getElementById('trialLogoutBtn');
+            if (trialLogoutBtn) {
+                trialLogoutBtn.addEventListener('click', () => this.logout());
+            }
+        }
+    }
+
+    async downgradeToFree(modalId, triggerBtn, triggerLabel) {
+        const modalEl = document.getElementById(modalId);
+        const errorEl = modalEl ? modalEl.querySelector('.subscription-modal-error') : null;
+        const buttons = modalEl ? modalEl.querySelectorAll('.modal-footer button, .d-grid button') : [];
+
+        if (errorEl) errorEl.style.display = 'none';
+        buttons.forEach(btn => btn.disabled = true);
+        if (triggerBtn) {
+            triggerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        }
+
+        try {
+            const response = await AuthHelper.apiCall('profile/update.php', 'PUT', { subscription: 'free' });
+
+            if (response && response.success) {
+                AuthHelper.setAuthData(AuthHelper.getToken(), response.user);
+
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+
+                window.location.reload();
+            } else {
+                throw new Error((response && response.message) || 'Failed to update subscription');
+            }
+        } catch (error) {
+            console.error('Downgrade to free failed:', error);
+            if (errorEl) {
+                errorEl.textContent = 'Something went wrong. Please try again.';
+                errorEl.style.display = 'block';
+            }
+            buttons.forEach(btn => btn.disabled = false);
+            if (triggerBtn) {
+                triggerBtn.innerHTML = triggerLabel;
+            }
+        }
+    }
+
+    showCheckoutModal() {
+        const modalEl = document.getElementById('checkoutModal');
+        if (!modalEl) return;
+
+        this.subscriptionGateActive = true;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        modal.show();
+        this.elevateGateBackdrop();
+
+        if (!modalEl.dataset.bound) {
+            modalEl.dataset.bound = 'true';
+
+            const payNowBtn = document.getElementById('payNowBtn');
+            if (payNowBtn) {
+                payNowBtn.addEventListener('click', () => {
+                    const msg = document.getElementById('payComingSoonMsg');
+                    if (msg) msg.style.display = 'block';
+                });
+            }
+
+            const switchToFreeBtn = document.getElementById('switchToFreeBtn');
+            if (switchToFreeBtn) {
+                switchToFreeBtn.addEventListener('click', () => this.downgradeToFree('checkoutModal', switchToFreeBtn, 'Switch to Free Plan'));
+            }
+
+            const checkoutLogoutBtn = document.getElementById('checkoutLogoutBtn');
+            if (checkoutLogoutBtn) {
+                checkoutLogoutBtn.addEventListener('click', () => this.logout());
+            }
+        }
+    }
+
+    elevateGateBackdrop() {
+        // Push the most recently created Bootstrap backdrop above any other
+        // fixed-position UI (e.g. the PWA install prompt at z-index 10000)
+        // so the subscription gate truly blocks the whole app.
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        const backdrop = backdrops[backdrops.length - 1];
+        if (backdrop) backdrop.style.zIndex = '10590';
     }
 
     bindGlobalEvents() {
@@ -782,6 +921,12 @@ class FaithFastApp {
     }
 
     showInstallModal() {
+        // Don't compete with the subscription gate - it must stay the only
+        // thing the user can interact with.
+        if (this.subscriptionGateActive) {
+            return;
+        }
+
         // Install prompt is mobile-only, and shouldn't show if already
         // installed or running as PWA
         if (!isMobileDevice() || this.isRunningStandalone() || this.isAppInstalled()) {
