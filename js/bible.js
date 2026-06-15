@@ -115,8 +115,8 @@ class Bible {
 
         testamentFilter.innerHTML = `
             <option value="all">All Testaments</option>
-            <option value="Old">Old Testament</option>
-            <option value="New">New Testament</option>
+            <option value="Old Testament">Old Testament</option>
+            <option value="New Testament">New Testament</option>
         `;
     }
 
