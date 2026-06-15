@@ -2,6 +2,7 @@
 // Update the existing join.php
 require_once '../config.php';
 require_once '../CRUD.php';
+require_once '../notifications/_helper.php';
 
 header('Content-Type: application/json');
 
@@ -66,8 +67,30 @@ try {
     ];
     
     $membershipId = $membershipCrud->create($membershipData);
-    
-    $message = $requiresApproval 
+
+    if ($requiresApproval) {
+        $admins = $membershipCrud->readAll([
+            'group_id' => $group_id,
+            'role' => 'admin',
+            'status' => 'approved'
+        ]);
+
+        $requester = (new CRUD('users'))->read($user_id);
+        $groupName = $group['name'] ?? 'your group';
+
+        foreach ($admins as $admin) {
+            createNotification(
+                $admin['user_id'],
+                'join_request',
+                'New Join Request',
+                ($requester['name'] ?? 'A user') . ' requested to join "' . $groupName . '".',
+                'groups',
+                $group_id
+            );
+        }
+    }
+
+    $message = $requiresApproval
         ? 'Join request sent. Waiting for approval.' 
         : 'Joined group successfully';
     

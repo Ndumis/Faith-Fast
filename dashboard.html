@@ -52,6 +52,19 @@
                     <h1 class="app-name">Faith Fast</h1>
                 </div>
                 <div class="header-actions">
+					<div class="notification-menu" id="notificationToggle">
+						<i class="fas fa-bell"></i>
+						<span class="nav-badge notification-badge" id="notificationBadge" style="display:none;">0</span>
+					</div>
+					<div class="notification-dropdown" id="notificationDropdown">
+						<div class="notification-dropdown-header">
+							<span>Notifications</span>
+							<button class="notification-mark-all" id="markAllReadBtn">Mark all read</button>
+						</div>
+						<div class="notification-list" id="notificationList">
+							<!-- Notification items will be loaded here -->
+						</div>
+					</div>
 					<div class="user-menu" id="userMenuToggle">
 						<div class="user-avatar" id="userAvatar">U</div>
 						<span class="user-name" id="userName">User</span>
@@ -161,6 +174,9 @@
                                             <i class="fas fa-fire"></i>
                                             <span id="currentStreak">0 days</span>
                                             <small>Current Streak</small>
+                                            <span id="streakBadge" class="streak-badge" style="display:none;">
+                                                <i class="fas fa-medal"></i> <span id="streakBadgeText"></span>
+                                            </span>
                                         </div>
                                         <div class="welcome-stat">
                                             <i class="fas fa-calendar"></i>
@@ -339,6 +355,11 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Recent Activity</h3>
+                                <div class="input-group input-group-sm mt-2">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="activitySearch" autocomplete="off"
+                                           placeholder="Search activity...">
+                                </div>
                             </div>
                             <div class="card-body">
                                 <div id="recentActivity" class="activity-feed">
@@ -451,6 +472,13 @@
 							<div class="col-12">
 								<div class="d-flex justify-content-between align-items-center mb-4">
 									<h3><i class="fas fa-history text-secondary"></i> Fast History</h3>
+								</div>
+								<div class="mb-3">
+									<div class="input-group">
+										<span class="input-group-text"><i class="fas fa-search"></i></span>
+										<input type="text" class="form-control" id="fastHistorySearch" autocomplete="off"
+											   placeholder="Search history by intention or status...">
+									</div>
 								</div>
 								<div class="row" id="fastHistoryContainer">
 									<!-- Fast history will be loaded here -->
@@ -1011,8 +1039,9 @@
 	
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	<script src="js/pwa.js?v=20260614b"></script>
-    <script src="js/app.js?v=20260614c"></script>
-    <script src="js/dashboard.js?v=20260614b"></script>
+    <script src="js/fasting-reminders.js?v=20260615a"></script>
+    <script src="js/app.js?v=20260615a"></script>
+    <script src="js/dashboard.js?v=20260615b"></script>
     <script src="js/richtext-editor.js?v=20260614e"></script>
     <script src="js/fasting.js?v=20260614f"></script>
     <script src="js/journal.js?v=20260614f"></script>

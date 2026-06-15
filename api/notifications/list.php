@@ -11,29 +11,28 @@ try {
         echo json_encode(['success' => false, 'message' => 'Authentication required']);
         exit;
     }
-    
-    $user_id = $authUser['user_id'];
-    $db = Database::getInstance()->getConnection();
 
-    $sql = "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0";
-    $stmt = $db->prepare($sql);
-    if (!$stmt) {
-        throw new Exception('Failed to prepare SQL statement: ' . $db->error);
-    }
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $count = (int)$stmt->get_result()->fetch_assoc()['count'];
+    $user_id = $authUser['user_id'];
+    $crud = new CRUD('notifications');
+
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+    $limit = max(1, min($limit, 50));
+
+    $notifications = $crud->readAll(
+        ['user_id' => $user_id],
+        'created_at DESC',
+        $limit
+    );
 
     echo json_encode([
         'success' => true,
-        'count' => $count
+        'notifications' => $notifications
     ]);
-    
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error fetching notifications'
+        'message' => 'Error fetching notifications: ' . $e->getMessage()
     ]);
 }
 ?>

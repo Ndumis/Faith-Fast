@@ -14,6 +14,7 @@ class FaithFastApp {
         this.bindEvents();
         this.setupNavScrollIndicators();
         this.setupUserMenu();
+        this.setupNotificationMenu();
     }
 
     setupUserMenu() {
@@ -43,6 +44,154 @@ class FaithFastApp {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeMenu();
         });
+    }
+
+    setupNotificationMenu() {
+        const toggle = document.getElementById('notificationToggle');
+        const dropdown = document.getElementById('notificationDropdown');
+        if (!toggle || !dropdown) return;
+
+        const closeMenu = () => {
+            toggle.classList.remove('open');
+            dropdown.classList.remove('show');
+        };
+
+        toggle.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.toggle('show');
+            toggle.classList.toggle('open', isOpen);
+            if (isOpen) {
+                await this.loadNotificationList();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!toggle.contains(e.target) && !dropdown.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMenu();
+        });
+
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await this.apiCall('notifications/mark-read.php', 'POST', { all: true });
+                await this.loadNotificationList();
+                await this.loadNotificationCount();
+            });
+        }
+
+        // Periodic refresh of the unread badge
+        setInterval(() => this.loadNotificationCount(), 60000);
+    }
+
+    async loadNotificationList() {
+        try {
+            const response = await this.apiCall('notifications/list.php');
+            if (response.success) {
+                this.renderNotificationList(response.notifications || []);
+            }
+        } catch (error) {
+            console.error('Error loading notification list:', error);
+        }
+    }
+
+    renderNotificationList(notifications) {
+        const list = document.getElementById('notificationList');
+        if (!list) return;
+
+        const localNotifications = this.getLocalFastingNotifications();
+        const merged = [...localNotifications, ...notifications]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        if (merged.length === 0) {
+            list.innerHTML = '<div class="notification-empty">No notifications yet.</div>';
+            return;
+        }
+
+        list.innerHTML = merged.map(n => {
+            const icon = this.getNotificationTypeIcon(n.type);
+            const timeAgo = this.getTimeAgo(new Date(n.created_at));
+            const unreadClass = !n.is_read ? 'unread' : '';
+            const isLocal = n.local ? '1' : '0';
+            return `
+                <div class="notification-item ${unreadClass}" data-id="${n.id}" data-tab="${n.link_tab || ''}" data-local="${isLocal}">
+                    <div class="notification-item-icon"><i class="fas fa-${icon}"></i></div>
+                    <div class="notification-item-content">
+                        <p class="notification-item-title">${n.title}</p>
+                        ${n.message ? `<p class="notification-item-message">${n.message}</p>` : ''}
+                        <div class="notification-item-time">${timeAgo}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        list.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const id = item.dataset.id;
+                const tab = item.dataset.tab;
+                const isLocal = item.dataset.local === '1';
+
+                if (isLocal) {
+                    this.dismissLocalFastingNotification(id);
+                } else {
+                    await this.apiCall('notifications/mark-read.php', 'POST', { id });
+                    await this.loadNotificationCount();
+                    item.classList.remove('unread');
+                }
+
+                if (tab) this.switchTab(tab);
+            });
+        });
+    }
+
+    getNotificationTypeIcon(type) {
+        const icons = {
+            prayer_answered: 'praying-hands',
+            join_approved: 'user-check',
+            join_rejected: 'user-times',
+            join_request: 'user-plus',
+            direct_message: 'envelope',
+            fasting_reminder: 'clock'
+        };
+        return icons[type] || 'bell';
+    }
+
+    getLocalFastingNotifications() {
+        return (typeof FastingReminders !== 'undefined') ? FastingReminders.getAll() : [];
+    }
+
+    dismissLocalFastingNotification(id) {
+        if (typeof FastingReminders !== 'undefined') {
+            FastingReminders.dismiss(id);
+        }
+        this.refreshNotificationBadgeWithLocal();
+        this.loadNotificationList();
+    }
+
+    refreshNotificationBadgeWithLocal() {
+        return this.apiCall('notifications/count.php').then(response => {
+            const serverCount = response.count || 0;
+            const localCount = (typeof FastingReminders !== 'undefined') ? FastingReminders.unreadCount() : 0;
+            this.updateNotificationBadge(serverCount + localCount);
+        }).catch(() => {
+            const localCount = (typeof FastingReminders !== 'undefined') ? FastingReminders.unreadCount() : 0;
+            this.updateNotificationBadge(localCount);
+        });
+    }
+
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
     }
 
     setupNavScrollIndicators() {
@@ -516,8 +665,7 @@ class FaithFastApp {
 
     async loadNotificationCount() {
         try {
-            const response = await this.apiCall('notifications/count.php');
-            this.updateNotificationBadge(response.count);
+            await this.refreshNotificationBadgeWithLocal();
         } catch (error) {
             console.error('Error loading notifications:', error);
         }

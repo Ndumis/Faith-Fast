@@ -9,9 +9,10 @@ class Dashboard {
         this.completedFasts = [];
         this.filters = {
             year: new Date().getFullYear(),
-            month: 'all',
+            month: new Date().getMonth() + 1,
             fastType: 'all'
         };
+        this.activitySearchQuery = '';
     }
 
     async init() {
@@ -123,6 +124,32 @@ class Dashboard {
                 this.handleQuickAction(actionType);
             });
         });
+
+        // Recent activity search
+        const activitySearch = document.getElementById('activitySearch');
+        if (activitySearch) {
+            activitySearch.addEventListener('input', (e) => {
+                this.searchActivities(e.target.value);
+            });
+        }
+    }
+
+    searchActivities(query) {
+        this.activitySearchQuery = query.trim().toLowerCase();
+        this.updateRecentActivities();
+    }
+
+    getFilteredActivities() {
+        let filtered = [...(this.recentActivities || [])];
+        if (this.activitySearchQuery) {
+            filtered = filtered.filter(activity =>
+                (activity.action && activity.action.toLowerCase().includes(this.activitySearchQuery)) ||
+                (activity.title && activity.title.toLowerCase().includes(this.activitySearchQuery)) ||
+                (activity.status && activity.status.toLowerCase().includes(this.activitySearchQuery)) ||
+                (activity.type && activity.type.toLowerCase().includes(this.activitySearchQuery))
+            );
+        }
+        return filtered;
     }
 
     applyFilters() {
@@ -216,6 +243,7 @@ class Dashboard {
 
         // Update streaks
         this.updateElementText('currentStreak', `${data.currentStreak || 0} days`);
+        this.updateStreakBadge(data.currentStreak || 0);
         this.updateElementText('fastsThisMonth', data.fastsThisMonth || 0);
 
         // Update upcoming fasts
@@ -313,21 +341,26 @@ class Dashboard {
         const container = document.getElementById('recentActivity');
         if (!container) return;
 
-        if (!this.recentActivities || this.recentActivities.length === 0) {
+        const filteredActivities = this.getFilteredActivities();
+
+        if (!filteredActivities || filteredActivities.length === 0) {
+            const message = this.activitySearchQuery
+                ? 'No activities match your search.'
+                : 'No recent activities. Start fasting, writing journals, or adding prayers to see activities here.';
             container.innerHTML = `
                 <div class="activity-item">
                     <div class="activity-icon">
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div class="activity-content">
-                        <p>No recent activities. Start fasting, writing journals, or adding prayers to see activities here.</p>
+                        <p>${message}</p>
                     </div>
                 </div>
             `;
             return;
         }
 
-        container.innerHTML = this.recentActivities.map(activity => {
+        container.innerHTML = filteredActivities.map(activity => {
             const date = new Date(activity.date);
             const timeAgo = this.getTimeAgo(date);
             const icon = this.getActivityIcon(activity.type);
@@ -576,6 +609,26 @@ class Dashboard {
         if (element) {
             element.textContent = text;
         }
+    }
+
+    updateStreakBadge(streak) {
+        const badge = document.getElementById('streakBadge');
+        const text = document.getElementById('streakBadgeText');
+        if (!badge || !text) return;
+
+        let tier = null;
+        if (streak >= 100) tier = { label: '100 Day Streak', icon: 'fa-crown', cls: 'streak-100' };
+        else if (streak >= 30) tier = { label: '30 Day Streak', icon: 'fa-medal', cls: 'streak-30' };
+        else if (streak >= 7) tier = { label: '7 Day Streak', icon: 'fa-fire', cls: 'streak-7' };
+
+        if (!tier) {
+            badge.style.display = 'none';
+            return;
+        }
+        badge.className = `streak-badge ${tier.cls}`;
+        badge.style.display = 'inline-flex';
+        badge.querySelector('i').className = `fas ${tier.icon}`;
+        text.textContent = tier.label;
     }
 
     initializeCalendar() {

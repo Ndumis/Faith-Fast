@@ -1,6 +1,7 @@
 const CACHE_NAME = 'faith-fast-v1.2.0-universal';
 const STATIC_CACHE = 'static-v2-universal';
 const DYNAMIC_CACHE = 'dynamic-v2-universal';
+const BIBLE_CACHE = 'bible-verses-v1';
 
 // URLs to cache - relative to this script's location, so the app can be
 // deployed at the domain root or in a subdirectory.
@@ -14,6 +15,7 @@ const urlsToCache = [
     './js/branding-config.js',
     './js/branding.js',
     './js/auth-helper.js',
+    './js/fasting-reminders.js',
     './js/app.js',
     './js/auth.js',
     './js/dashboard.js',
@@ -63,6 +65,35 @@ self.addEventListener('fetch', event => {
     // ignoreSearch would otherwise return the same cached response for
     // every "?group_id=..." / "?user_id=..." variant of an endpoint.
     const requestUrl = new URL(event.request.url);
+
+    // Bible chapter reads are cached for offline use: cache-first, then
+    // refresh the cache from the network in the background. Exact query
+    // match (ignoreSearch: false) so each book/chapter is its own entry.
+    if (requestUrl.pathname.includes('/api/bible/verses.php')) {
+        event.respondWith(
+            caches.open(BIBLE_CACHE).then(cache =>
+                cache.match(event.request, { ignoreSearch: false }).then(cachedResponse => {
+                    const networkFetch = fetch(event.request).then(networkResponse => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    }).catch(() => null);
+
+                    if (cachedResponse) {
+                        networkFetch.catch(() => {});
+                        return cachedResponse; // cache-first
+                    }
+                    return networkFetch.then(networkResponse => networkResponse || new Response(
+                        JSON.stringify({success: false, message: 'Offline and no cached chapter available'}),
+                        {status: 503, headers: {'Content-Type': 'application/json'}}
+                    ));
+                })
+            )
+        );
+        return;
+    }
+
     if (requestUrl.pathname.includes('/api/')) {
         event.respondWith(fetch(event.request));
         return;
@@ -116,7 +147,7 @@ self.addEventListener('activate', event => {
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cache => {
-                    if (cache !== STATIC_CACHE && cache !== DYNAMIC_CACHE) {
+                    if (cache !== STATIC_CACHE && cache !== DYNAMIC_CACHE && cache !== BIBLE_CACHE) {
                         console.log('Service Worker: Clearing old cache', cache);
                         return caches.delete(cache);
                     }

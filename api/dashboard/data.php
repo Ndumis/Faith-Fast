@@ -112,15 +112,21 @@ try {
     if ($year !== 'all') {
         $prayerConditions['YEAR(created_at)'] = $year;
     }
-    
+    if ($month !== 'all') {
+        $prayerConditions['MONTH(created_at)'] = $month;
+    }
+
     $prayersCount = count($prayerCrud->readAll($prayerConditions));
-    
+
     // Get journal entries count
     $journalCrud = new CRUD('journal_entries');
     $journalConditions = ['user_id' => $user_id];
-    
+
     if ($year !== 'all') {
         $journalConditions['YEAR(created_at)'] = $year;
+    }
+    if ($month !== 'all') {
+        $journalConditions['MONTH(created_at)'] = $month;
     }
     
     $journalEntries = count($journalCrud->readAll($journalConditions));

@@ -1,6 +1,7 @@
 <?php
 require_once '../config.php';
 require_once '../CRUD.php';
+require_once '../notifications/_helper.php';
 
 header('Content-Type: application/json');
 
@@ -66,7 +67,30 @@ try {
     }
     
     $membershipCrud->update($input['membership_id'], $updateData);
-    
+
+    $group = (new CRUD('`groups`'))->read($membership['group_id']);
+    $groupName = $group['name'] ?? 'the group';
+
+    if ($input['action'] === 'approve') {
+        createNotification(
+            $membership['user_id'],
+            'join_approved',
+            'Join Request Approved',
+            'Your request to join "' . $groupName . '" was approved.',
+            'groups',
+            $membership['group_id']
+        );
+    } else {
+        createNotification(
+            $membership['user_id'],
+            'join_rejected',
+            'Join Request Rejected',
+            'Your request to join "' . $groupName . '" was declined.',
+            'groups',
+            $membership['group_id']
+        );
+    }
+
     echo json_encode([
         'success' => true,
         'message' => $message

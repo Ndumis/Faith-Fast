@@ -2,6 +2,7 @@
 // chat/send.php
 require_once '../config.php';
 require_once '../CRUD.php';
+require_once '../notifications/_helper.php';
 
 header('Content-Type: application/json');
 
@@ -78,7 +79,20 @@ try {
     
     if ($stmt->execute()) {
         $messageId = $db->insert_id;
-        
+
+        if (isset($input['receiver_id'])) {
+            $sender = (new CRUD('users'))->read($user_id);
+            $senderName = $sender['name'] ?? 'Someone';
+            createNotification(
+                $input['receiver_id'],
+                'direct_message',
+                $senderName,
+                mb_strimwidth($input['message'], 0, 80, '...'),
+                'chat',
+                $user_id
+            );
+        }
+
         echo json_encode([
             'success' => true,
             'message' => 'Message sent successfully',

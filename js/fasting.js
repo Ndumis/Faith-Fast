@@ -10,6 +10,10 @@ class Fasting {
         this.historyPage = 1;
         this.historyPageSize = 5;
         this.planSearchQuery = '';
+        this.historySearchQuery = '';
+        this.reminderThresholds = [3600000, 900000]; // 1 hour, 15 minutes (ms)
+        this.dailyReminderHour = 9;
+        this.streakRiskHour = 18;
     }
 
     async init() {
@@ -456,10 +460,18 @@ class Fasting {
 
         const completedFasts = this.userFasts
             .filter(fast => fast.status === 'completed' || fast.status === 'cancelled')
+            .filter(fast => {
+                if (!this.historySearchQuery) return true;
+                const intention = (fast.intention || '').toLowerCase();
+                const status = (fast.status || '').toLowerCase();
+                return intention.includes(this.historySearchQuery) || status.includes(this.historySearchQuery);
+            })
             .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
 
         if (completedFasts.length === 0) {
-            container.innerHTML = '';
+            container.innerHTML = this.historySearchQuery
+                ? '<div class="col-12 text-center text-muted py-4">No fast history matches your search.</div>'
+                : '';
             return;
         }
 
@@ -993,6 +1005,14 @@ class Fasting {
                 this.filterFastingPlans(e.target.value);
             });
         }
+
+        // Fast history search
+        const historySearchInput = document.getElementById('fastHistorySearch');
+        if (historySearchInput) {
+            historySearchInput.addEventListener('input', (e) => {
+                this.filterFastHistory(e.target.value);
+            });
+        }
     }
 
     filterFastingPlans(query) {
@@ -1000,10 +1020,22 @@ class Fasting {
         this.renderFastingPlans();
     }
 
+    filterFastHistory(query) {
+        this.historySearchQuery = query.trim().toLowerCase();
+        this.historyPage = 1;
+        this.renderFastHistory();
+    }
+
     startTimers() {
         setInterval(() => {
             this.updateClocks();
         }, 1000);
+
+        setInterval(() => {
+            this.checkFastingReminders();
+        }, 60000);
+
+        this.checkFastingReminders();
     }
 
     updateClocks() {
@@ -1012,7 +1044,7 @@ class Fasting {
             const now = new Date();
             const timeRemaining = endDate - now;
             clock.textContent = this.formatTimeRemaining(timeRemaining);
-            
+
             if (timeRemaining < 3600000) {
                 clock.classList.add('text-danger');
                 clock.classList.remove('text-primary');
@@ -1025,6 +1057,61 @@ class Fasting {
             const timeUntilStart = startDate - now;
             clock.textContent = `Starts in: ${this.formatTimeRemaining(timeUntilStart)}`;
         });
+    }
+
+    checkFastingReminders() {
+        if (typeof FastingReminders === 'undefined' || !this.isAuthenticated) return;
+
+        const now = new Date();
+
+        // Fast-ending-soon reminders for active fasts
+        this.activeFasts.forEach(fast => {
+            const endDate = new Date(fast.end_date);
+            const timeRemaining = endDate - now;
+
+            this.reminderThresholds.forEach(threshold => {
+                const key = `ff_reminder_end_${fast.id}_${threshold}`;
+                if (timeRemaining > 0 && timeRemaining <= threshold && !localStorage.getItem(key)) {
+                    const label = threshold === 3600000 ? '1 hour' : '15 minutes';
+                    FastingReminders.add({
+                        type: 'fasting_reminder',
+                        title: 'Fast Ending Soon',
+                        message: `Your fast ends in ${label}.`,
+                        link_tab: 'fasting',
+                        storageKey: key
+                    });
+                    localStorage.setItem(key, '1');
+                }
+            });
+        });
+
+        const todayKey = now.toISOString().slice(0, 10);
+
+        // Streak-at-risk reminder: no active fast and it's getting late
+        const streakKey = `ff_reminder_streak_${todayKey}`;
+        if (this.activeFasts.length === 0 && now.getHours() >= this.streakRiskHour && !localStorage.getItem(streakKey)) {
+            FastingReminders.add({
+                type: 'fasting_reminder',
+                title: 'Streak at Risk',
+                message: 'You have no active fast today - start one to keep your streak going!',
+                link_tab: 'fasting',
+                storageKey: streakKey
+            });
+            localStorage.setItem(streakKey, '1');
+        }
+
+        // Daily reminder: once per day, in the morning, if no active fast yet
+        const dailyKey = `ff_reminder_daily_${todayKey}`;
+        if (this.activeFasts.length === 0 && now.getHours() >= this.dailyReminderHour && !localStorage.getItem(dailyKey)) {
+            FastingReminders.add({
+                type: 'fasting_reminder',
+                title: 'Daily Reminder',
+                message: 'Have you planned your fast for today?',
+                link_tab: 'fasting',
+                storageKey: dailyKey
+            });
+            localStorage.setItem(dailyKey, '1');
+        }
     }
 
     showMessage(message, type) {

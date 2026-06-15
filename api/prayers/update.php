@@ -1,6 +1,7 @@
 <?php
 require_once '../config.php';
 require_once '../CRUD.php';
+require_once '../notifications/_helper.php';
 
 header('Content-Type: application/json');
 
@@ -51,6 +52,17 @@ try {
     if (!empty($updateData)) {
         $updateData['updated_at'] = date('Y-m-d H:i:s');
         $prayerCrud->update($input['id'], $updateData);
+
+        if (isset($input['status']) && $input['status'] === 'answered' && $prayer['status'] !== 'answered') {
+            createNotification(
+                $prayer['user_id'],
+                'prayer_answered',
+                'Prayer Answered',
+                'Your prayer "' . $prayer['title'] . '" has been marked as answered.',
+                'prayers',
+                $prayer['id']
+            );
+        }
     }
     
     echo json_encode([

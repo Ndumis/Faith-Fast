@@ -204,6 +204,153 @@ body {
   color: var(--error);
 }
 
+/* ===== NOTIFICATION DROPDOWN ===== */
+.notification-menu {
+  align-items: center;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  position: relative;
+  transition: var(--transition);
+  width: 36px;
+}
+
+.notification-menu:hover,
+.notification-menu.open {
+  background: var(--light-gray);
+}
+
+.notification-menu i {
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.notification-dropdown {
+  background: var(--secondary);
+  border: 1px solid var(--medium-gray);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  display: none;
+  flex-direction: column;
+  width: 320px;
+  max-width: 90vw;
+  max-height: 400px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 1100;
+}
+
+.notification-dropdown.show {
+  display: flex;
+}
+
+.notification-dropdown-header {
+  align-items: center;
+  border-bottom: 1px solid var(--medium-gray);
+  color: var(--primary);
+  display: flex;
+  font-weight: 600;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+}
+
+.notification-mark-all {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.notification-mark-all:hover {
+  color: var(--primary);
+}
+
+.notification-list {
+  overflow-y: auto;
+}
+
+.notification-item {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--light-gray);
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  transition: var(--transition);
+}
+
+.notification-item:hover {
+  background: var(--light-gray);
+}
+
+.notification-item.unread {
+  background: #f5f8ff;
+}
+
+.notification-item.unread::before {
+  background: var(--primary);
+  border-radius: 50%;
+  content: '';
+  flex-shrink: 0;
+  height: 8px;
+  margin-top: 6px;
+  width: 8px;
+}
+
+.notification-item-icon {
+  align-items: center;
+  color: var(--primary);
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  width: 24px;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-title {
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.notification-item-message {
+  color: var(--text-light);
+  font-size: 0.8rem;
+  margin: 2px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-item-time {
+  color: var(--text-light);
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.notification-empty {
+  color: var(--text-light);
+  font-size: 0.85rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
 /* ===== NAVIGATION STYLES ===== */
 .main-nav {
   background: var(--secondary);
@@ -568,6 +715,45 @@ body {
 .welcome-stat small {
   opacity: 0.8;
   font-size: 0.8rem;
+}
+
+/* ===== STREAK MILESTONE BADGE ===== */
+.welcome-stat .streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.welcome-stat .streak-badge i,
+.welcome-stat .streak-badge span {
+  display: inline;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin: 0;
+  opacity: 1;
+}
+
+.welcome-stat .streak-badge.streak-7 {
+  background: rgba(255, 152, 0, 0.25);
+  color: #ffb74d;
+}
+
+.welcome-stat .streak-badge.streak-30 {
+  background: rgba(76, 175, 80, 0.25);
+  color: #81c784;
+}
+
+.welcome-stat .streak-badge.streak-100 {
+  background: rgba(255, 215, 0, 0.25);
+  color: #ffd700;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.4);
 }
 
 /* Stats Grid */
@@ -2723,6 +2909,24 @@ body {
   }
 
   .highlight-card-actions .btn {
+    flex: 1;
+  }
+
+  .pending-request,
+  .member-management-item {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .request-actions,
+  .member-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .request-actions .btn,
+  .member-actions .btn {
     flex: 1;
   }
 }
